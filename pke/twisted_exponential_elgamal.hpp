@@ -21,7 +21,7 @@ struct PP
 struct CT
 {
     ECPoint X; // X = pk^r 
-    ECPoint Y; // Y = g^m h^r 
+    ECPoint Y; // Y = g^r h^m 
 };
 
 
