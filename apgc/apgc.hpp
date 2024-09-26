@@ -1,8 +1,8 @@
 /****************************************************************************
-this hpp implements the ADCP functionality 
+this hpp implements the APGC functionality 
 *****************************************************************************/
-#ifndef ADCP_HPP_
-#define ADCP_HPP_
+#ifndef APGC_HPP_
+#define APGC_HPP_
 
 #include "../pke/twisted_exponential_elgamal.hpp"        // implement Twisted ElGamal  
 #include "../zkp/nizk/nizk_plaintext_equality.hpp" // NIZKPoK for plaintext equality
@@ -16,7 +16,7 @@ this hpp implements the ADCP functionality
 #define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
 
-namespace ADCP{
+namespace APGC{
 
 using Serialization::operator<<; 
 using Serialization::operator>>; 
