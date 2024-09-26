@@ -7,6 +7,7 @@ this hpp implements many_out_of_many proof and adopts the aadcp
 #include "../../crypto/hash.hpp"
 #include "../../commitment/pedersen.hpp"
 #include "../../utility/polymul.hpp"
+#include "innerproduct_proof.hpp" 
 #include <utility>
 #include <iostream>
 
@@ -19,934 +20,442 @@ using Serialization::operator>>;
 // define structure of AnyOutOfManyProof
 struct PP
 {
-    size_t Com_LEN;
-    size_t Log_Com_Len;
-    Pedersen::PP com_part;
-    ECPoint g;
-   
+    size_t com_len; // the length of the commitment
+    Pedersen::PP com_part;  
+    ECPoint g, h;
+    ECPoint u; // used for inside innerproduct statement
+    std::vector<ECPoint> vec_g, vec_h; // the pp of innerproduct part
 };
 std::ofstream &operator<<(std::ofstream &fout, const PP &pp)
 {
-    fout<<pp.Com_LEN<<pp.Log_Com_Len<<pp.com_part<<pp.g;
+    fout << pp.com_len << pp.com_part;
+    fout << pp.g << pp.h << pp.u;
+    fout << pp.vec_g;
+    fout << pp.vec_h;
+
     return fout;
 }
 std::ifstream &operator>>(std::ifstream &fin, PP& pp)
 {
-    fin>>pp.Com_LEN>>pp.Log_Com_Len>>pp.com_part>>pp.g;
+    fin >> pp.com_len >> pp.com_part;
+    fin >> pp.g >> pp.h >> pp.u;
+
+    pp.vec_g.resize(pp.com_len);
+    pp.vec_h.resize(pp.com_len);
+    fin >> pp.vec_g;
+    fin >> pp.vec_h;
+
     return fin;  
 }
-struct Ck
-{
-    ECPoint gk;
-    ECPoint hk;
-};
+
 struct Instance
 {
-    size_t Com_Num;
-    //std::vector<ElGamal::CT>vec_cipher;
-    //devide the cipher into two parts in order to compute efficient
-    std::vector<ECPoint> vec_cipherballeft;
-    std::vector<ECPoint> vec_cipherbalright;
-    std::vector<ECPoint> vec_ciphervalue;
-    ECPoint cipher4D; //D is equal to to g^r
-    std::vector<ECPoint> vec_pk;
-    ECPoint gepoch;
-    ECPoint uepoch;
+    std::vector<ECPoint> vec_com;// the vector of the commitment, in APGC, it may refer to the pk or the elgamal cipher.
 };
 struct Witness
 {
-    size_t Ran_num;
-    BigInt l0;
-    BigInt l1;
-    BigInt value;
-    BigInt sk;
-    BigInt r;
-    BigInt vprime;
+    std::vector<BigInt> vec_s;
+    std::vector<BigInt> vec_b;
+    //std::vector<bool> vec_b; maybe we can use this to compute efficiently
 };
-//this maybe a dirty way to implement the randoms reuse,if we combine the proof into one,we can avoid this
-struct ConsRandom{
-    BigInt kb;
-    std::vector<BigInt> vec_al0;
-    std::vector<BigInt> vec_al1;
-};
-// define structure of ManyOutOfManyProof
+
+// define structure of AnyOutOfManyProof
 struct Proof
 {
-    size_t Num;// it is not necessary, but we can use it to check the number of the proof
-    ECPoint proof_ComA, proof_ComB ;
-    std::vector<ECPoint> vec_locipherballeft;
-    std::vector<ECPoint> vec_locipherbalright;
-    std::vector<ECPoint> vec_lociphervalue;
-    std::vector<ECPoint> locipher4D;
-    std::vector<ECPoint> lovec_pk;
-    std::vector<ECPoint> lovec_g;
-    std::vector<ECPoint> lovec_oppcipher;
-    std::vector<ECPoint> lovec_oppcipherpk;
-    std::vector<BigInt> vec_proof_f0;
-    std::vector<BigInt> vec_proof_f1;
-    BigInt proof_Za;
-    BigInt proof_Ssk, proof_Sr, proof_Sb0, proof_Sb1;
-    ECPoint proof_Ayreenc, proof_ADreenc,proof_Ab0reenc,proof_Ab1reenc,proof_Axreenc;
-    ECPoint proof_Au;
+    ECPoint A, S, T1, T2;
+    ECPoint E; // E = init message for P^{y^{N} \circ b}
+    BigInt taux, mu, tx; // tx = <l,r>
+    BigInt fs;
+    InnerProduct::Proof ip_proof;
 
- 
 };
 std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
 {
-    fout<<proof.Num<<proof.proof_ComA<<proof.proof_ComB;
-    size_t m=proof.vec_locipherballeft.size();
-    for(auto i=0;i<m;i++)
-    {
-        fout<<proof.vec_locipherballeft[i]
-            <<proof.vec_locipherbalright[i]
-            <<proof.vec_lociphervalue[i]
-            <<proof.locipher4D[i]
-            <<proof.lovec_pk[i]
-            <<proof.lovec_g[i]
-            <<proof.lovec_oppcipher[i]
-            <<proof.lovec_oppcipherpk[i]
-            <<proof.vec_proof_f0[i]
-            <<proof.vec_proof_f1[i];
-    }
-    fout<<proof.proof_Ssk<<proof.proof_Sr
-        <<proof.proof_Sb0<<proof.proof_Sb1;
-    fout<<proof.proof_Ayreenc<<proof.proof_ADreenc
-        <<proof.proof_Ab0reenc<<proof.proof_Ab1reenc
-        <<proof.proof_Axreenc<<proof.proof_Au; 
-
+    fout << proof.A << proof.S << proof.T1 << proof.T2 << proof.E;
+    fout << proof.taux << proof.mu << proof.tx;
+    fout << proof.ip_proof;
     return fout; 
 }
 
 std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
 {
-    fin>>proof.Num>>proof.proof_ComA>>proof.proof_ComB;
-    size_t m=proof.vec_locipherballeft.size();
-    for(auto i=0;i<m;i++)
-    {
-        fin>>proof.vec_locipherballeft[i]
-            >>proof.vec_locipherbalright[i]
-            >>proof.vec_lociphervalue[i]
-            >>proof.locipher4D[i]
-            >>proof.lovec_pk[i]
-            >>proof.lovec_g[i]
-            >>proof.lovec_oppcipher[i]
-            >>proof.lovec_oppcipherpk[i]
-            >>proof.vec_proof_f0[i]
-            >>proof.vec_proof_f1[i];
-    }
-    fin>>proof.proof_Ssk>>proof.proof_Sr
-        >>proof.proof_Sb0>>proof.proof_Sb1;
-    fin>>proof.proof_Ayreenc>>proof.proof_ADreenc
-        >>proof.proof_Ab0reenc>>proof.proof_Ab1reenc
-        >>proof.proof_Axreenc>>proof.proof_Au;
+    fin >> proof.A >> proof.S >> proof.T1 >> proof.T2 >> proof.E;
+    fin >> proof.taux >> proof.mu >> proof.tx;
+    fin >> proof.ip_proof;
     return fin; 
 }
+
 void PrintProof(Proof &proof)
 {
-    std::cout<<"Num:"<<proof.Num<<std::endl;
-    proof.proof_ComA.Print("proof_ComA");
-    proof.proof_ComB.Print("proof_ComB");
-    size_t m=proof.vec_locipherballeft.size();
-    for(auto i=0;i<m;i++)
-    {
-        proof.vec_locipherballeft[i].Print("vec_locipherballeft");
-        proof.vec_locipherbalright[i].Print("vec_locipherbalright");
-        proof.vec_lociphervalue[i].Print("vec_lociphervalue");
-        proof.locipher4D[i].Print("locipher4D");
-        proof.lovec_pk[i].Print("lovec_pk");
-        proof.lovec_g[i].Print("lovec_g");
-        proof.lovec_oppcipher[i].Print("lovec_oppcipher");
-        proof.lovec_oppcipherpk[i].Print("lovec_oppcipherpk");
-        proof.vec_proof_f0[i].Print("vec_proof_f0");
-        proof.vec_proof_f1[i].Print("vec_proof_f1");
-    }
-    proof.proof_Ssk.Print("proof_Ssk");
-    proof.proof_Sr.Print("proof_Sr");
-    proof.proof_Sb0.Print("proof_Sb0");
-    proof.proof_Sb1.Print("proof_Sb1");
-
-    proof.proof_Ayreenc.Print("proof_Ayreenc");
-    proof.proof_ADreenc.Print("proof_ADreenc");
-    proof.proof_Ab0reenc.Print("proof_Ab0reenc");
-    proof.proof_Ab1reenc.Print("proof_Ab1reenc");
-    proof.proof_Axreenc.Print("proof_Axreenc");
-
-    proof.proof_Au.Print("proof_Au");
-  
+    proof.A.Print("proof.A"); 
+    proof.S.Print("proof.S"); 
+    proof.T1.Print("proof.T1");  
+    proof.T2.Print("proof.T2"); 
+    proof.E.Print("proof.E");
+    proof.taux.Print("proof.taux"); 
+    proof.mu.Print("proof.mu"); 
+    proof.tx.Print("proof.tx"); 
+    InnerProduct::PrintProof(proof.ip_proof); 
 }
 
-PP Setup(size_t Com_LEN, size_t Log_Com_Len,Pedersen::PP &com_part)
+PP Setup(size_t com_len, size_t ,Pedersen::PP &com_part)
 {
-
     PP pp;
-    pp.Com_LEN = Com_LEN;
-    pp.Log_Com_Len = Log_Com_Len;
+    pp.com_len = com_len;
     pp.com_part = com_part;
-    pp.g = ECPoint(generator); 
+
+    pp.g = generator;
+    pp.h = Hash::StringToECPoint(pp.g.ToByteString());
+    pp.u = GenRandomGenerator();
+
+    pp.vec_g = GenRandomECPointVector(com_len);
+    pp.vec_h = GenRandomECPointVector(com_len);
+
     return pp;
 }
 
-BigInt Accumulate(std::vector<BigInt> vec,const BigInt &mod)
+void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::string &transcript_str,)
 {
-    BigInt ans=BigInt(bn_1);
-    for(auto i=0;i<vec.size();i++)
-    {
-        ans=(ans*vec[i])%mod;
-    }
-    return ans;
-}
-//generate the Polynomial of index i
-std::vector<BigInt> BigIntPolModProduct(std::vector< std::vector<std::pair<BigInt, BigInt>> >vec_F,BigInt index, BigInt mod)
-{
-    size_t k=vec_F.size(); // n is the number of rows, m is the number of columns,m=2;
-    size_t m=vec_F[0].size();
-    std::vector<BigInt> vec_ans(k+1,bn_0);
-    size_t n=1<<k;//n=2^k;
-    size_t sum=0;
-    std::vector<BigInt> vec_tmp(k);
-    for(auto i=0;i<n;i++)
-    {
-        for(auto j=0;j<k;j++)
-        {
-            if(((i>>j)&1)==1)
-            {
-                sum++;
-                vec_tmp[j]=vec_F[j][index.GetTheNthBit(j)].first;
-            }
-            else
-            {
-                vec_tmp[j]=vec_F[j][index.GetTheNthBit(j)].second;
-            }
+    auto start_time = std::chrono::steady_clock::now();
 
-        }
-        BigInt tmp_acc=Accumulate(vec_tmp,mod);
-        vec_ans[sum]=(vec_ans[sum]+tmp_acc)%mod;
-        sum=0;      
-    }
-    return vec_ans;
-}
-/* generate a^n = (a^0, a^1, a^2, ..., a^{n-1}) */ 
-std::vector<BigInt> GenBigIntPowerVector(size_t LEN, const BigInt &a)
-{
+    size_t LEN = pp.com_len;
+
+    std::vector<BigInt> vec_aL(LEN);
+    std::vector<BigInt> vec_aR(LEN);
+
+    std::vector<BigInt> vec_1_power(LEN, bn_1); // vec_unary = 1^n
+
+    vec_aL = witness.vec_b;
+    vec_aR = BigIntVectorModSub(vec_aL, vec_1_power,  BigInt(order)); // Eq (42) -- aR = aL - 1^n
     
-    std::vector<BigInt> vec_result(LEN);
-    vec_result[0] = BigInt(bn_1); 
-    for (auto i = 1; i < LEN; i++)
-    {
-        vec_result[i] = (vec_result[i-1] * a) % order; // result[i] = result[i-1]*a % order
-    }
-    return vec_result; 
-}
-/* generate a^n = (a^0,a^0, a^1, a^2, ..., a^{n-2}) */
-std::vector<BigInt> GenBigIntPowerVector4sdpt(size_t LEN, const BigInt &a)
-{
+    BigInt alpha = GenRandomBigIntLessThan(order);
+
+    std::vector<BigInt> vec_A =(2*LEN+1);
+    std::copy(pp.vec_g.begin(), pp.vec_g.end(), vec_A.begin());
+    std::copy(pp.vec_h.begin(), pp.vec_h.end(), vec_A.begin()+LEN);
+    vec_A[2*LEN] = pp.u;
+
+    std::vector<BigInt> vec_a(2*LEN+1);
+    std::copy(vec_aL.begin(), vec_aL.end(), vec_a.begin());
+    std::copy(vec_aR.begin(), vec_aR.end(), vec_a.begin()+LEN);
+    vec_a[2*LEN] = alpha;
+
+    proof.A = ECPointVectorMul(vec_A, vec_a);
+
+    // pick sL, sR from Z_p^n (choose blinding vectors sL, sR)
+    std::vector<BigInt> vec_sL = GenRandomBigIntVectorLessThan(LEN, order); 
+    std::vector<BigInt> vec_sR = GenRandomBigIntVectorLessThan(LEN, order); 
     
-    std::vector<BigInt> vec_result(LEN);
-    vec_result[0] = BigInt(bn_1);
-    vec_result[1] = BigInt(bn_1); 
-    for (auto i = 2; i < LEN; i++)
-    {
-        vec_result[i] = (vec_result[i-1] * a) % order; // result[i] = result[i-1]*a % order
-    }
-    return vec_result; 
-}
+    // Eq (47) compute S = H^alpha g^aL h^aR (commitment to sL and sR)
+    BigInt beta = GenRandomBigIntLessThan(order); 
 
-// circularly shifts the vector v of field elements by the integer j, choose right shift 
-std::vector<BigInt> Shift(std::vector<BigInt> vec, size_t j)
-{
-    size_t n = vec.size(); 
-    std::vector<BigInt> vec_result(n); 
-    for (size_t i = 0; i < n; i++)
-    {
-        vec_result[i] = vec[(i+j)%n]; 
-    }
-    return vec_result; 
-}
+    std::copy(vec_sL.begin(), vec_sL.end(), vec_a.begin()); 
+    std::copy(vec_sR.begin(), vec_sR.end(), vec_a.begin()+LEN); 
+    vec_a[2*LEN] = beta; 
 
-std::vector<std::vector<BigInt>> BigIntMatrixtransposition(std::vector<std::vector<BigInt>> vec)
-{
-    size_t n=vec.size();
-    size_t m=vec[0].size();
-    std::vector<std::vector<BigInt>> vec_result(m,std::vector<BigInt>(n));
-    for(auto i=0;i<n;i++)
-    {
-        for(auto j=0;j<m;j++)
-        {
-            vec_result[j][i]=vec[i][j];
-        }
-    }
-    return vec_result;
-}
+    proof.S = ECPointVectorMul(vec_A, vec_a); 
 
-size_t GetTheNthBit(size_t index, size_t n)
-{
-    return (index>>n)&1;
-}
-void Prove(PP &pp,Witness &witness,Instance &instance,std::string &transcript_str, Proof &proof,ConsRandom &cons_random)
-{
+    transcript_str += proof.A.ToByteString(); 
+    BigInt y = Hash::StringToBigInt(transcript_str);
 
-    BigInt ra = GenRandomBigIntLessThan(order); 
-    BigInt rb = GenRandomBigIntLessThan(order);
-    BigInt rc = GenRandomBigIntLessThan(order);
-    BigInt rd = GenRandomBigIntLessThan(order);
-    size_t n=pp.Com_LEN;
-    size_t m=pp.Log_Com_Len;
-    proof.Num=n;
-    std::vector<BigInt> al0(m);
-    std::vector<BigInt> bl0(m);
-    std::vector<BigInt> al1(m);
-    std::vector<BigInt> bl1(m);
-    BigInt l0=witness.l0;
-    BigInt l1=witness.l1;
+    BigInt y_inverse = y.ModInverse(order);
 
-    size_t l0_size_t=l0.ToUint64();
-    size_t l1_size_t=l1.ToUint64();
+    std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(LEN, y_inverse); // y^{-i+1}
+
+    transcript_str += proof.S.ToByteString(); 
+    BigInt z = Hash::StringToBigInt(transcript_str);
+
+    BigInt z_square = z.ModSquare(order);
+    BigInt z_cubic = (z * z_square) % order;
     
-    for(auto i=0; i<m; i++)
+    size_t num = 1; // set the num, re-compute the z^{j+1} j \in [n]
+    std::vector<BigInt> vec_adjust_z_power(num+1); // generate z^{j+1} j \in [n] 
+    vec_adjust_z_power[0] = z; 
+    for (auto j = 1; j <= num; j++)
     {
-        al0[i]=GenRandomBigIntLessThan(order);
-        al1[i]=GenRandomBigIntLessThan(order);
-        if(l0.GetTheNthBit(i)==1)   
-        {
-            bl0[i]=bn_1;
-        }
-        else
-        {
-            bl0[i]=bn_0;
-        }
-        if(l1.GetTheNthBit(i)==1)   
-        {
-            bl1[i]=bn_1;
-        }
-        else
-        {
-            bl1[i]=bn_0;
-        }
-    }
-    cons_random.vec_al0=al0;
-    cons_random.vec_al1=al1;
-    std::vector<BigInt> vec_ma0(2*m);
-    std::vector<BigInt> vec_mb0(2*m);
-    std::vector<BigInt> vec_ma1(2*m);
-    std::vector<BigInt> vec_mb1(2*m);
-    std::vector<BigInt> vec_ma(4*m+2);
-    std::vector<BigInt> vec_mb(4*m+2);
+        vec_adjust_z_power[j] = (z * vec_adjust_z_power[j-1]) % order; //pow(z, j+1, q); description below Eq (71)
+    }  
 
-    /*fill vec_ma0 and vec_mb0,the first part*/
-    std::copy(al0.begin(), al0.end(), vec_ma0.begin());
-    std::copy(al1.begin(), al1.end(), vec_ma0.begin()+m);
-    std::copy(bl0.begin(), bl0.end(), vec_mb0.begin());
-    std::copy(bl1.begin(), bl1.end(), vec_mb0.begin()+m);
+    // compute l(X) 
+    std::vector<BigInt> vec_z_unary(LEN, z); // z \cdot 1^n
+    std::vector<BigInt> vec_zz_temp = BigIntVectorModSub(vec_aL, vec_z_unary, BigInt(order)); // vec_t = aL - z1^n
+    std::vector<BigInt> vec_y_power = GenBigIntPowerVector(LEN, y); // y^n
+    std::vector<BigInt> poly_ll0 = BigIntVectorModProduct(vec_y_power, vec_zz_temp, BigInt(order)); // y^n(aL - z1^n)
 
-    /*fill vec_ma1*/
-    std::vector<BigInt> vec_tmpa(m);
-    BigInt modx=order;
-    vec_tmpa=BigIntVectorModNegate(al0,modx);
+    std::vector<BigInt> poly_ll1 = BigIntVectorModProduct(vec_y_power, vec_sL, BigInt(order)); //y^n sL X
+
+
+    // compute r(X)     
+    std::vector<BigInt> poly_rr0 = BigIntVectorModAdd(vec_aR, vec_z_unary, BigInt(order)); // aR + z1^n
+    
+    std::vector<BigInt> poly_rr1(LEN);
+    poly_rr1.assign(vec_sR.begin(), vec_sR.end());
+
+    // compute t(X) 
+    BigInt t0 = BigIntVectorModInnerProduct(poly_ll0, poly_rr0, BigInt(order)); 
+    BigInt bn_temp1 = BigIntVectorModInnerProduct(poly_ll1, poly_rr0, BigInt(order)); 
+    BigInt bn_temp2 = BigIntVectorModInnerProduct(poly_ll0, poly_rr1, BigInt(order));
+    BigInt t1 = (bn_temp1 + bn_temp2) % BigInt(order);  
   
-    vec_tmpa=BigIntVectorModProduct(vec_tmpa, al0, order);
-    std::copy(vec_tmpa.begin(), vec_tmpa.end(), vec_ma1.begin());
+    BigInt t2 = BigIntVectorModInnerProduct(poly_ll1, poly_rr1, BigInt(order)); 
 
-    vec_tmpa=BigIntVectorModNegate(al1,modx);
-    vec_tmpa=BigIntVectorModProduct(vec_tmpa, al1, order);
-    std::copy(vec_tmpa.begin(), vec_tmpa.end(), vec_ma1.begin()+m);
-
-    /*fill vec_mb1*/
-    std::vector<BigInt> vec_tmpb(m);
-    BigInt bk2=bn_2.Negate();
-    std::vector<BigInt> bn1(m,bn_1);
-    vec_tmpb=BigIntVectorModScalar(bl0, bk2, order);
- 
-    vec_tmpb=BigIntVectorModAdd(vec_tmpb, bn1, order);
-    //vec_tmpb=BigIntVectorModSub(bn1,vec_tmpb, order);
-    vec_tmpb=BigIntVectorModProduct(vec_tmpb, al0, order);
-
-    std::copy(vec_tmpb.begin(), vec_tmpb.end(), vec_mb1.begin());
-
-    vec_tmpb=BigIntVectorModScalar(bl1, bk2, order);
- 
-    vec_tmpb=BigIntVectorModAdd(vec_tmpb, bn1, order);
-    //vec_tmpb=BigIntVectorModSub(bn1, vec_tmpb,order);
-    vec_tmpb=BigIntVectorModProduct(vec_tmpb, al1, order);
-    std::copy(vec_tmpb.begin(), vec_tmpb.end(), vec_mb1.begin()+m);
-
-    /*fill vec_ma and vec_mb*/
-    std::copy(vec_ma0.begin(), vec_ma0.end(), vec_ma.begin());
-    std::copy(vec_ma1.begin(), vec_ma1.end(), vec_ma.begin()+2*m);
-    std::copy(vec_mb0.begin(), vec_mb0.end(), vec_mb.begin());
-    std::copy(vec_mb1.begin(), vec_mb1.end(), vec_mb.begin()+2*m);
-
-    vec_ma[4*m]=vec_ma[0]*vec_ma[m]%order;
-    vec_ma[4*m+1]=vec_ma[4*m];
-    if(vec_mb[0]==bn_1)
-    {
-        vec_mb[4*m]=vec_ma[m];
-       
-    }
-    else
-    {
-        vec_mb[4*m]=vec_ma[0];
-    }
-    if(vec_mb[m]==bn_1)
-    {
-        vec_mb[4*m+1]=-vec_ma[m];
-    }
-    else
-    {
-        vec_mb[4*m+1]=-vec_ma[0];
-    }
+    // Eq (53) -- commit to t1, t2
+    // P picks tau1 and tau2
+    BigInt tau1 = GenRandomBigIntLessThan(order); 
+    BigInt tau2 = GenRandomBigIntLessThan(order); 
     
-    proof.proof_ComA=Pedersen::Commit(pp.com_part, vec_ma, ra); //comiitment of A
-
-    proof.proof_ComB=Pedersen::Commit(pp.com_part, vec_mb, rb); //commitment of B
-
-
-    std::vector< std::vector< std::pair<BigInt, BigInt>> > vec_F0(m,std::vector<std::pair<BigInt, BigInt>>(2));
-    std::vector< std::vector< std::pair<BigInt, BigInt>> > vec_F1(m,std::vector<std::pair<BigInt, BigInt>>(2)); 
-    //the m ine the later should be  modified to m+1
-    std::vector< std::vector<BigInt> > vec_P0(n,std::vector<BigInt>(m)); //n rows ,m columns
-    std::vector< std::vector<BigInt> > vec_P1(n,std::vector<BigInt>(m)); //n rows ,m columns
-    std::vector< std::vector<BigInt> > vec_P0transposition; //n rows ,m columns
-    std::vector< std::vector<BigInt> > vec_P1transposition; //n rows ,m columns
-
-    /*compute F and P*/
-    for(auto k=0;k<m;k++)
-    {   
-        std::pair<BigInt, BigInt> tmp_F0;
-        std::pair<BigInt, BigInt> tmp_F1;
-        tmp_F0.first=bl0[k];
-        tmp_F0.second=al0[k];
-        vec_F0[k][1]=tmp_F0;
-        tmp_F0.first=(bn_1-bl0[k]);
-        tmp_F0.second=-al0[k];
-        vec_F0[k][0]=tmp_F0;
-
-        tmp_F1.first=bl1[k];
-        tmp_F1.second=al1[k];
-        vec_F1[k][1]=tmp_F1;
-        tmp_F1.first=(bn_1-bl1[k]);
-        tmp_F1.second=-al1[k];
-        vec_F1[k][0]=tmp_F1;
-    }
-
-    std::vector<BigInt> vec_product_tmp;
-    for(auto i=0;i<n;i++)
-    {
-        vec_product_tmp=BigIntPolModProduct(vec_F0,i, order);
-        vec_P0[i]=vec_product_tmp; 
-        vec_product_tmp=BigIntPolModProduct(vec_F1,i, order);
-        vec_P1[i]=vec_product_tmp;            
-    }
-   
-    vec_P0transposition=BigIntMatrixtransposition(vec_P0);
-    vec_P1transposition=BigIntMatrixtransposition(vec_P1);
-
-    /*compute challenge v*/
-    transcript_str+=proof.proof_ComA.ToByteString();
-    transcript_str+=proof.proof_ComB.ToByteString();
-   
-
-    BigInt v=Hash::StringToBigInt(transcript_str);
-
-    size_t rs=witness.Ran_num; //rs should be equal to N;
-   
-    std::vector<BigInt> vec_ksi=GenBigIntPowerVector4sdpt(rs, v);
-
-    //sample phi,chi_k,psi_k,omega from Zq
-    std::vector<BigInt>phi(m);
-    std::vector<BigInt>chi(m);
-    std::vector<BigInt>psi(m);
-    std::vector<BigInt>omega(m);
-
-    for(auto i=0;i<m;i++)
-    {
-        phi[i]=GenRandomBigIntLessThan(order);
-        chi[i]=GenRandomBigIntLessThan(order);
-        psi[i]=GenRandomBigIntLessThan(order);
-        omega[i]=GenRandomBigIntLessThan(order);
-    }
-
-    //compute the lower-order terms 
-    std::vector<ECPoint> vec_locipherballeft(m);
-    std::vector<ECPoint> vec_locipherbalright(m);
-    std::vector<ECPoint> vec_lociphervalue(m);
-    std::vector<ECPoint> locipher4D(m);
-    std::vector<ECPoint> lovec_pk(m);
-    std::vector<ECPoint> lovec_g(m);
-    std::vector<ECPoint> lovec_oppcipher(m);
-    std::vector<ECPoint> lovec_oppcipherpk(m);
-    //int this way, ECPointVectorMul is equal to MultiExp of the paper Anonymous Zehter
-    ECPoint Ec_tmp;
-    ECPoint Ec_tmpsum;
+    vec_A.clear(); vec_A = {pp.g, pp.h};
     
-    for(size_t k=0;k<m;k++)
-    {
-        vec_locipherballeft[k]=ECPointVectorMul(instance.vec_cipherballeft, vec_P0transposition[k]) + (instance.vec_pk[l0_size_t] * phi[k]);
-        vec_locipherbalright[k]=ECPointVectorMul(instance.vec_cipherbalright, vec_P0transposition[k]) + (pp.g * phi[k]);
-        vec_lociphervalue[k]=ECPointVectorMul(instance.vec_ciphervalue, vec_P0transposition[k]) + (instance.vec_pk[l0_size_t] * chi[k]);
-        locipher4D[k]=(pp.g * chi[k]);
-        lovec_pk[k]=ECPointVectorMul(instance.vec_pk,vec_P0transposition[k])+ (instance.vec_pk[l0_size_t] * psi[k]);
-        lovec_g[k]=pp.g * psi[k];
-        lovec_oppcipherpk[k]=(pp.g * omega[k]);
-        Ec_tmpsum.SetInfinity();
-        //use the other way is also ok,but need to two vector addtionly 
-        for(size_t l=0;l<2;l++)
-        {
-            for(size_t j=0;j<n/2;j++)
-            {
-                size_t index_ka=(2*j+l)%n;
-                size_t index_Pl0=(l0_size_t+2*j)%n;
-                size_t index_Pl1=(l1_size_t+2*j)%n;
-                if(l==0)
-                {
-                    BigInt expont=witness.value * (-vec_P0[index_Pl0][k]+vec_P0[index_Pl1][k]);
-                    Ec_tmp=pp.g*expont;
-                }
-                else
-                {
-                    BigInt expont=witness.value * (-vec_P1[index_Pl0][k]+vec_P1[index_Pl1][k]);
-                    Ec_tmp=pp.g*expont;
-                }
-                Ec_tmpsum=Ec_tmpsum + Ec_tmp*vec_ksi[index_ka];                
-            }
-        }
-        lovec_oppcipher[k]=Ec_tmpsum+(instance.cipher4D * omega[k]);
-    }
-    proof.vec_locipherballeft=vec_locipherballeft;
-    proof.vec_locipherbalright=vec_locipherbalright;
-    proof.vec_lociphervalue=vec_lociphervalue;
-    proof.locipher4D=locipher4D;
-    proof.lovec_pk=lovec_pk;
-    proof.lovec_g=lovec_g;
-    proof.lovec_oppcipher=lovec_oppcipher;
-    proof.lovec_oppcipherpk=lovec_oppcipherpk;
-
-    /*compute the challenge w*/
-    //we use the parallel way to compute the challenge w, which is more efficient,if need,serial way is also ok 
-    for(size_t i=0;i < m;i++)
-    {
-        transcript_str+=proof.vec_locipherballeft[i].ToByteString();
-        transcript_str+=proof.vec_locipherbalright[i].ToByteString();
-        transcript_str+=proof.vec_lociphervalue[i].ToByteString();
-        transcript_str+=proof.locipher4D[i].ToByteString();
-        transcript_str+=proof.lovec_pk[i].ToByteString();
-        transcript_str+=proof.lovec_g[i].ToByteString();
-        transcript_str+=proof.lovec_oppcipher[i].ToByteString();
-        transcript_str+=proof.lovec_oppcipherpk[i].ToByteString();
-    }
-
-    BigInt w=Hash::StringToBigInt(transcript_str);
+    vec_a.clear(); vec_a = {tau1, t1};  
+    proof.T1 = ECPointVectorMul(vec_A, vec_a); //pp.g * tau1 + pp.h * t1; mul(tau1, pp.g, t1, pp.h);
     
-    proof.vec_proof_f0.resize(m);
-    proof.vec_proof_f1.resize(m);
-    for(auto k=0;k<m;k++)
-    {
-        proof.vec_proof_f0[k]=(bl0[k]*w%order+al0[k])%order;
-        proof.vec_proof_f1[k]=(bl1[k]*w%order+al1[k])%order;
-        transcript_str += proof.vec_proof_f0[k].ToByteString();
-        transcript_str += proof.vec_proof_f1[k].ToByteString();
-    }
-    proof.proof_Za=(rb*w%order+ra)%order;
+    vec_a.clear(); vec_a = {tau2, t2};  
+    proof.T2 = ECPointVectorMul(vec_A, vec_a); //pp.g * tau2 + pp.h * t2; mul(tau2, pp.g, t2, pp.h);    
+
+    // compute the challenge x
+    transcript_str += proof.T1.ToByteString() + proof.T2.ToByteString(); 
+    BigInt x = Hash::StringToBigInt(transcript_str); 
+
+    BigInt x_square = x.ModSquare(order);   
+
+    // compute the value of l(x) and r(x) at point x
+    vec_zz_temp = BigIntVectorModScalar(poly_ll1, x, BigInt(order));
+    std::vector<BigInt> llx = BigIntVectorModAdd(poly_ll0, vec_zz_temp, BigInt(order));
+
+    vec_zz_temp = BigIntVectorModScalar(poly_rr1, x, BigInt(order)); 
+    std::vector<BigInt> rrx = BigIntVectorModAdd(poly_rr0, vec_zz_temp, BigInt(order)); 
+
+    proof.tx = BigIntVectorModInnerProduct(llx, rrx, BigInt(order));    
+
+
+    proof.E = ECPointVectorMul(instance.vec_com, poly_ll1); // E = \prod_{i=1}^{n} P_i^{{y^N} \circ b_i}
     
-    transcript_str += proof.proof_Za.ToByteString();
-
-    BigInt z=Hash::StringToBigInt(transcript_str);
-    
-    //prover “anticipates” certain re-encryptions
-    BigInt wem=w.ModExp(m,order);
-    ECPoint re_cipherrbalright=instance.vec_cipherbalright[l0_size_t]*wem ;
-    BigInt wek;
-    for(auto k=0;k<m;k++)
+    BigInt rs = GenRandomBigIntLessThan(order);
+    std::vector<BigInt> vec_com_value = {bn_0}；
+    proof.E = proof.E + Pedersen::Commit(pp.com_part, vec_com_value, -rs); // E = E + com(0, -rs)
+    // compute taux
+    proof.taux = (tau1 * x + tau2 * x_square) % order; //proof.taux = tau2*x_square + tau1*x; 
+    /*for (auto j = 1; j <= num; j++)
     {
-        wek=w.ModExp(k,order);
-        wek=wek.ModMul(-phi[k],order);
-        re_cipherrbalright=re_cipherrbalright+pp.g*wek;
-    }
-    ECPoint re_cipher4D=instance.cipher4D*wem;
-    BigInt w4g=bn_0;
-    //we can also use the other way to compute 
-    for(auto k=0;k<m;k++)
-    {
-        wek=w.ModExp(k,order);
-        w4g=(w4g-chi[k]*wek)%order;      
-    }
-    re_cipher4D=re_cipher4D+pp.g*w4g;
-
-    BigInt wv=bn_0;
-    for(auto k=0;k<m;k++)
-    {
-        wek=w.ModExp(k,order);
-        wv=(wv+psi[k]*wek)%order;      
-    }
-    wv=wem.ModSub(wv,order);
-    ECPoint re_cipher4g=pp.g*wv; 
-
-    //compute the P of eval of w
-    std::vector<BigInt> vec_evalP0(n);
-    std::vector<BigInt> vec_evalP1(n);
-
-    /*the fisrt way*/
-    BigInt tmp_sumP0=bn_0;
-    BigInt tmp_sumP1=bn_0;
-    for(auto i=0;i<n;i++)
-    {
-        tmp_sumP0=bn_0;
-        tmp_sumP1=bn_0;
-        for(auto j=0;j<m;j++)
-        {
-            tmp_sumP0=(tmp_sumP0+vec_P0[i][j]*w.ModExp(BigInt(j),order))%order;
-            tmp_sumP1=(tmp_sumP1+vec_P1[i][j]*w.ModExp(BigInt(j),order))%order;
-        }
-        vec_evalP0[i]=tmp_sumP0;
-        vec_evalP1[i]=tmp_sumP1;
-    }
-    /*the sender_index and receiver_index's poly order is m.not m-1,so had better to use the second way*/
-    vec_evalP0[l0_size_t]=(vec_evalP0[l0_size_t]+w.ModExp(m,order))%order;
-    vec_evalP1[l1_size_t]=(vec_evalP1[l1_size_t]+w.ModExp(m,order))%order;
-
-    /*the second way*/
-    /*BigInt tmp_sump0=bn_1;
-    BigInt tmp_sump1=bn_1;
-    for(auto i=0;i<n;i++)
-    {
-        tmp_sump0=bn_1;
-        tmp_sump1=bn_1;
-        for(auto k=0;k<m;k++)
-        {
-            if(GetTheNthBit(i,k)==1)
-            {
-                tmp_sump0=tmp_sump0*proof.vec_proof_f0[k]%order;
-                tmp_sump1=tmp_sump1*proof.vec_proof_f1[k]%order;
-            }
-            else
-            {
-                tmp_sump0=tmp_sump0*(w-proof.vec_proof_f0[k])%order;
-                tmp_sump1=tmp_sump1*(w-proof.vec_proof_f1[k])%order;
-            } 
-        }
-        vec_evalP0[i]=tmp_sump0;
-        vec_evalP1[i]=tmp_sump1; 
+        proof.taux = (proof.taux + vec_adjust_z_power[j] * witness.r[j-1]) % order; 
     }*/
-    ECPoint re_oppcipher;
-    re_oppcipher.SetInfinity();
-    std::vector<BigInt> vec_shift;
 
-    for(size_t l=0; l<2; l++)
+    // compute proof.mu = (alpha + beta*x) %q;  
+    proof.mu = (alpha + beta * x) % order; 
+    proof.fs = bn_0;
+    
+    size_t k = witness.vec_s.size();
+    size_t j = 0;
+    for(auto i = 0; i < LEN; i++)
     {
-        ECPoint re_tmp;
-        for(size_t j=0; j<n/2; j++)
+        if(witness.vec_b[i] == bn_1)
         {
-            size_t index_ka=(2*j+l)%n;
-            if(l==0)
-            {
-                vec_shift=Shift(vec_evalP0,2*j);
-                re_tmp=ECPointVectorMul(instance.vec_pk,vec_shift);
-                
-            }
-            else
-            {
-                vec_shift=Shift(vec_evalP1,2*j);
-                re_tmp=ECPointVectorMul(instance.vec_pk,vec_shift);
-                
-            }
-            re_oppcipher=re_oppcipher+re_tmp*vec_ksi[index_ka];  
-                         
+            proof.fs = (proof.fs + witness.vec_s[j] * vec_y_power[i] ) % order;
+            j++;
         }
     }
-    for(auto k=0;k<m;k++)
+    // addtional check
+    if(j != k)
     {
-        wek=w.ModExp(k,order);
-        wek=wek.ModMul(-omega[k],order);
-        re_oppcipher=re_oppcipher+pp.g*wek;
+        std::cerr << "Error: the size of witness.vec_s is not equal to the size of witness.vec_b" << std::endl;
+        //exit(EXIT_FAILURE);
     }
+    proof.fs = (rs * x + proof.fs) % order;
 
-    BigInt ksk,kr,kb,ktau;
-    ksk=GenRandomBigIntLessThan(order);
-    kr=GenRandomBigIntLessThan(order);
-    kb=GenRandomBigIntLessThan(order);
-    ktau=GenRandomBigIntLessThan(order);
+    // transmit llx and rrx via inner product proof
 
-    cons_random.kb=kb;
+    InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false); 
+    ip_pp.vec_g.resize(LEN); 
+    std::copy(pp.vec_g.begin(), pp.vec_g.begin()+LEN, ip_pp.vec_g.begin()); // ip_pp.vec_g = pp.vec_g
 
-    proof.proof_Ayreenc=re_cipher4g*ksk;
-    proof.proof_ADreenc=pp.g*kr;
-    //
-    BigInt zsquare= z*z% order; 
-    BigInt zcube= zsquare*z% order;
-    proof.proof_Ab0reenc=pp.g*kb+((re_cipher4D)*(-zsquare))*ksk;
-    proof.proof_Ab1reenc=pp.g*kb+((re_cipherrbalright)*(zcube))*ksk;
+    ip_pp.vec_h.resize(LEN); 
+    std::copy(pp.vec_h.begin(), pp.vec_h.begin()+LEN, ip_pp.vec_h.begin()); 
+    ip_pp.vec_h = ECPointVectorProduct(ip_pp.vec_h, vec_y_inverse_power);  // ip_pp.vec_h = vec_h_new  
 
-    proof.proof_Axreenc=re_oppcipher*kr;
-    proof.proof_Au=instance.gepoch*ksk;
+    transcript_str += x.ToByteString();  
+    BigInt e = Hash::StringToBigInt(transcript_str);   
 
-    transcript_str+=proof.proof_Ayreenc.ToByteString();
-    transcript_str+=proof.proof_ADreenc.ToByteString();
-    transcript_str+=proof.proof_Ab0reenc.ToByteString();
-    transcript_str+=proof.proof_Ab1reenc.ToByteString();
-    transcript_str+=proof.proof_Axreenc.ToByteString();
-    transcript_str+=proof.proof_Au.ToByteString();
+    InnerProduct::Witness ip_witness;
+    ip_witness.vec_a = llx; // ip_witness.vec_a = llx
+    ip_witness.vec_b = rrx; // ip_witness.vec_b = rrx
 
-   
-    BigInt c=Hash::StringToBigInt(transcript_str);
+    InnerProduct::Instance ip_instance;
+    ip_pp.u = pp.u * e; //ip_pp.u = u^e 
 
-    BigInt wemc=wem*c%order;
-    proof.proof_Ssk=(ksk+c*witness.sk)%order;
-    proof.proof_Sr=(kr+c*witness.r)%order;
-    proof.proof_Sb0=(kb+((wemc*witness.value)%order)*zsquare)%order;
-    proof.proof_Sb1=(kb+((wemc*witness.vprime)%order)*zcube)%order;
-    
+    vec_A.resize(2*LEN+1); 
+    std::copy(ip_pp.vec_g.begin(), ip_pp.vec_g.end(), vec_A.begin()); 
+    std::copy(ip_pp.vec_h.begin(), ip_pp.vec_h.end(), vec_A.begin()+LEN); 
+    vec_A[2*LEN] = ip_pp.u;
+
+    vec_a.resize(2*LEN+1); 
+    std::copy(ip_witness.vec_a.begin(), ip_witness.vec_a.end(), vec_a.begin()); 
+    std::copy(ip_witness.vec_b.begin(), ip_witness.vec_b.end(), vec_a.begin()+LEN); 
+    vec_a[2*LEN] = proof.tx; 
+
+    ip_instance.P = ECPointVectorMul(vec_A, vec_a);  
+ 
+    InnerProduct::Prove(ip_pp, ip_instance, ip_witness, transcript_str, proof.ip_proof); 
+
     #ifdef DEBUG
-        std::cout << "Many prove Succeeds >>>" << std::endl; 
+        std::cout << "Any prove Succeeds >>>" << std::endl; 
     #endif
     
-    std::cout<<"Many prove proof Success "<<std::endl;
+    std::cout<<"Any out of many prove proof Success "<<std::endl;
     
 }
 
 bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof)
 {
+    #ifdef DEBUG
+        std::cout << "begin to check the proof" << std::endl; 
+    #endif
+
+    bool V1, V2, Validity; // variables for checking results
+
+    transcript_str += proof.A.ToByteString(); 
+    BigInt y = Hash::StringToBigInt(transcript_str);  //recover the challenge y
+    BigInt y_inverse = y.ModInverse(order);  
     
-    size_t n=pp.Com_LEN;
-    size_t m=pp.Log_Com_Len;
+    transcript_str += proof.S.ToByteString(); 
+    BigInt z = Hash::StringToBigInt(transcript_str); // recover the challenge z
 
-    transcript_str = "";
-    transcript_str += proof.proof_ComA.ToByteString();
-    transcript_str += proof.proof_ComB.ToByteString();
+    BigInt z_minus = z.ModNegate(order); 
+    BigInt z_square = z.ModSquare(order); // (z*z)%q; 
+    BigInt z_cubic = (z * z_square) % order; // maybe it will be unused
 
-    BigInt v=Hash::StringToBigInt(transcript_str);
+    transcript_str += proof.T1.ToByteString() + proof.T2.ToByteString(); 
+    BigInt x = Hash::StringToBigInt(transcript_str); 
+    BigInt x_square = x.ModSquare(order);  // (x*x)%q;  //recover the challenge x from PI
 
-    std::vector<BigInt> vec_p0(n);
-    std::vector<BigInt> vec_p1(n);
+    transcript_str += x.ToByteString(); 
+    BigInt e = Hash::StringToBigInt(transcript_str);  // play the role of x_u
 
-    for(auto i=0;i<m;i++)
+    size_t n = 1;
+    size_t LEN = pp.com_len * n; // l = nm 
+    std::vector<BigInt> vec_1_power(LEN, bn_1); // vec_unary = 1^nm
+    std::vector<BigInt> vec_short_1_power(pp.com_len, bn_1); 
+    std::vector<BigInt> vec_2_power = GenBigIntPowerVector(LEN, bn_2);
+    std::vector<BigInt> vec_short_2_power = GenBigIntPowerVector(pp.com_len, bn_2);  
+    std::vector<BigInt> vec_y_power = GenBigIntPowerVector(LEN, y); 
+
+    std::vector<BigInt> vec_adjust_z_power(n+1); // generate z^{j+2} j \in [n]
+    vec_adjust_z_power[0] = z; 
+    for (auto j = 1; j <= n; j++)
     {
-        transcript_str+=proof.vec_locipherballeft[i].ToByteString();
-        transcript_str+=proof.vec_locipherbalright[i].ToByteString();
-        transcript_str+=proof.vec_lociphervalue[i].ToByteString();
-        transcript_str+=proof.locipher4D[i].ToByteString();
-        transcript_str+=proof.lovec_pk[i].ToByteString();
-        transcript_str+=proof.lovec_g[i].ToByteString();
-        transcript_str+=proof.lovec_oppcipher[i].ToByteString();
-        transcript_str+=proof.lovec_oppcipherpk[i].ToByteString();
+        vec_adjust_z_power[j] = (z * vec_adjust_z_power[j-1]) % order; 
+    }  
+
+    // compute sum_{j=1^m} z^{j+2}
+    BigInt sum_z = bn_0; 
+    for (auto j = 1; j <= n; j++)
+    {
+        sum_z += vec_adjust_z_power[j]; 
     }
+    sum_z = (sum_z * z) % order;  
 
-    BigInt w=Hash::StringToBigInt(transcript_str);
+    // compute delta_yz (pp. 21)    
+    BigInt bn_temp1 = BigIntVectorModInnerProduct(vec_1_power, vec_y_power, BigInt(order)); 
+    BigInt bn_temp2 = BigIntVectorModInnerProduct(vec_short_1_power, vec_short_2_power, BigInt(order)); 
+
+    BigInt bn_c0 = z.ModSub(z_square, order); // z
+    bn_temp1 = bn_c0 * bn_temp1; 
+    bn_temp2 = sum_z * bn_temp2; 
+  
+    BigInt delta_yz = bn_temp1.ModSub(bn_temp2, order);  
+
+
+    // check Eq (72)  
+    ECPoint LEFT = pp.g * proof.taux + pp.h * proof.tx;  // LEFT = g^{\taux} h^\hat{t}
+
+    // the intermediate variables used to compute the right value
+    std::vector<ECPoint> vec_A; 
+    std::vector<BigInt> vec_a;
+    vec_A.resize(n + 3); 
+    vec_a.resize(n + 3);
+
+    std::copy(instance.C.begin(), instance.C.end(), vec_A.begin()); 
+    std::copy(vec_adjust_z_power.begin()+1, vec_adjust_z_power.end(), vec_a.begin()); 
+
+    vec_A[n] = pp.h, vec_A[n+1] = proof.T1, vec_A[n+2] = proof.T2;
+    vec_a[n] = delta_yz, vec_a[n+1] = x, vec_a[n+2] = x_square;  
+
+    ECPoint RIGHT = ECPointVectorMul(vec_A, vec_a);  // RIGHT = V^{z^2} h^{\delta_yz} T_1^x T_2^{x^2} 
+
+    V1 = (LEFT == RIGHT); 
+    #ifdef DEBUG
+        std::cout << std::boolalpha << "Condition 1 (Any out of many proof) = " << V1 << std::endl; 
+    #endif
+
+
+    // std::vector<ECPoint> vec_h_new = ThreadSafeECPointVectorProduct(pp.vec_h, vec_y_inverse_power); 
+
+    //check Eq (66,67,68) using Inner Product Argument
+    InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false); 
+
+    ip_pp.vec_g.resize(LEN); 
+    std::copy(pp.vec_g.begin(), pp.vec_g.begin()+LEN, ip_pp.vec_g.begin()); // ip_pp.vec_g = pp.vec_g
+
+    ip_pp.vec_h.resize(LEN); 
+    std::copy(pp.vec_h.begin(), pp.vec_h.begin()+LEN, ip_pp.vec_h.begin()); 
+    std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(LEN, y_inverse); // y^nm
+    ip_pp.vec_h = ECPointVectorProduct(ip_pp.vec_h, vec_y_inverse_power);  // ip_pp.vec_h = vec_h_new  
+
+    // ip_pp.vec_g = pp.vec_g;
+    // ip_pp.vec_h = vec_h_new;  
+
+    //InnerProduct_Proof ip_proof = proof.ip_proof;
+    InnerProduct::Instance ip_instance;
+    ip_pp.u = pp.u * e; // u = u^e 
     
-    BigInt tmp_p0=bn_1;
-    for(auto i=0;i<n;i++)
+    vec_A.resize(2*ip_pp.VECTOR_LEN+4); 
+    std::copy(ip_pp.vec_g.begin(), ip_pp.vec_g.end(), vec_A.begin()); 
+    std::copy(ip_pp.vec_h.begin(), ip_pp.vec_h.end(), vec_A.begin()+ip_pp.VECTOR_LEN);
+
+    vec_A[2*ip_pp.VECTOR_LEN] = proof.A; 
+    vec_A[2*ip_pp.VECTOR_LEN+1] = proof.S; 
+    vec_A[2*ip_pp.VECTOR_LEN+2] = pp.h; 
+    vec_A[2*ip_pp.VECTOR_LEN+3] = ip_pp.u; 
+
+    vec_a.resize(2*ip_pp.VECTOR_LEN+4);
+    
+    std::vector<BigInt> vec_z_minus_unary(LEN, z_minus); 
+    std::move(vec_z_minus_unary.begin(), vec_z_minus_unary.end(), vec_a.begin()); // LEFT += g^{-1 z^n} 
+
+    std::vector<BigInt> vec_rr = BigIntVectorModScalar(vec_y_power, z, BigInt(order)); // z y^nm
+    std::vector<BigInt> temp_vec_zz; 
+    for(auto j = 1; j <= n; j++)
     {
-        tmp_p0=bn_1;
-        for(auto k=0;k<m;k++)
+        temp_vec_zz = BigIntVectorModScalar(vec_2_power, vec_adjust_z_power[j], BigInt(order)); 
+        for(auto i = 0; i < pp.com_len; i++)
         {
-            if(GetTheNthBit(i,k)==1)
-            {
-                tmp_p0=tmp_p0*proof.vec_proof_f0[k]%order;        
-            }
-            else
-            {
-                tmp_p0=(tmp_p0*((w-proof.vec_proof_f0[k])%order)%order)%order;
-            }
+            vec_rr[(j-1)*pp.com_len+i] = (vec_rr[(j-1)*pp.com_len+i] + temp_vec_zz[i]) % order;            
         }
-        vec_p0[i]=tmp_p0%order;      
     }
-    
-    BigInt tmp_p1=bn_1;
-    for(auto i=0;i<n;i++)
-    {
-        tmp_p1=bn_1;
-        for(auto k=0;k<m;k++)
-        {
-            if(GetTheNthBit(i,k)==1)
-            {
-                tmp_p1=tmp_p1*proof.vec_proof_f1[k]%order;        
-            }
-            else
-            {
-                tmp_p1=tmp_p1*(w-proof.vec_proof_f1[k])%order;
-            }
-        }
-        vec_p1[i]=tmp_p1%order;      
-    }
+    std::move(vec_rr.begin(), vec_rr.end(), vec_a.begin()+ip_pp.VECTOR_LEN); 
+     
+    vec_a[2*ip_pp.VECTOR_LEN] = bn_1; 
+    vec_a[2*ip_pp.VECTOR_LEN+1] = x; 
+    vec_a[2*ip_pp.VECTOR_LEN+2] = -proof.mu; 
+    vec_a[2*ip_pp.VECTOR_LEN+3] = proof.tx; 
 
-    std::vector<BigInt> vec_mvf(4*m+2);
-    std::cout<<"begin to fill the commitment terms"<<std::endl;
-    std::vector<BigInt> vec_mvftmp4f0(m);
-    for(auto i=0;i<m;i++)
-    {
-        vec_mvftmp4f0[i]=proof.vec_proof_f0[i]*((w-proof.vec_proof_f0[i]+order)%order)%order;
-    }
 
-    std::vector<BigInt> vec_mvftmp4f1(m);
-    for(auto i=0;i<m;i++)
-    {
-        vec_mvftmp4f1[i]=proof.vec_proof_f1[i]*((w-proof.vec_proof_f1[i]+order)%order)%order;
-    }
-   
-    std::copy(proof.vec_proof_f0.begin(), proof.vec_proof_f0.end(), vec_mvf.begin());
-    std::copy(proof.vec_proof_f1.begin(), proof.vec_proof_f1.end(), vec_mvf.begin()+m);
-    std::copy(vec_mvftmp4f0.begin(), vec_mvftmp4f0.end(), vec_mvf.begin()+2*m);
-    std::copy(vec_mvftmp4f1.begin(), vec_mvftmp4f1.end(), vec_mvf.begin()+3*m);
-    PrintSplitLine('-');
-    std::cout<<"success fill the commitment terms"<<std::endl;
-    vec_mvf[4*m]=vec_mvf[0]*vec_mvf[m]%order;
-    vec_mvf[4*m+1]=(((w-vec_mvf[0])%order)*((w-vec_mvf[m])%order))%order;
+    ip_instance.P = ECPointVectorMul(vec_A, vec_a);  // set P_new = A + S^x + h^{-mu} u^tx  
 
-    std::cout<<"begin to check"<<std::endl;
-    //check 1 the commitment
-    ECPoint ComLeft=proof.proof_ComA+proof.proof_ComB*w;
-    ECPoint ComRight=Pedersen::Commit(pp.com_part, vec_mvf, proof.proof_Za);
-    if(ComLeft!=ComRight)
-    {
-        std::cout<<"Commitment is wrong"<<std::endl;
-        return false;
-    }
-    else{
-        std::cout<<"Commitment is right"<<std::endl;
-    }
-    
-    //begin comp of re-encryptions
-    ECPoint re_cipherrballeft=ECPointVectorMul(instance.vec_cipherballeft, vec_p0);
-    ECPoint re_cipherrbalright=ECPointVectorMul(instance.vec_cipherbalright, vec_p0);
-    ECPoint re_ciphervalue=ECPointVectorMul(instance.vec_ciphervalue, vec_p0);
-    BigInt wem=w.ModExp(m,order);
-    ECPoint re_cipher4D=instance.cipher4D*wem;
-    ECPoint re_pk=ECPointVectorMul(instance.vec_pk, vec_p0);
-    ECPoint re_cipher4g=pp.g*wem;
+    V2 = InnerProduct::FastVerify(ip_pp, ip_instance, transcript_str, proof.ip_proof); 
+    #ifdef DEBUG
+        std::cout << std::boolalpha << "Condition 2 (Aggregating Log Size BulletProof) = " << V2 << std::endl; 
+    #endif
 
-    BigInt wek;
-    for(auto k=0;k<m;k++)
-    {
-        wek=w.ModExp(k,order);
-        re_cipherrballeft=re_cipherrballeft+(proof.vec_locipherballeft[k]*(-wek));
-        re_cipherrbalright=re_cipherrbalright+(proof.vec_locipherbalright[k]*(-wek));
-        re_ciphervalue=re_ciphervalue+(proof.vec_lociphervalue[k]*(-wek));
-        re_cipher4D=re_cipher4D+(proof.locipher4D[k]*(-wek));
-        re_pk=re_pk+(proof.lovec_pk[k]*(-wek));
-        re_cipher4g=re_cipher4g+(proof.lovec_g[k]*(-wek));
-    }
-
-    std::vector<BigInt> vec_ksi=GenBigIntPowerVector4sdpt(n, v);
-
-    ECPoint re_Cx;
-    re_Cx.SetInfinity();
-    ECPoint re_yx;
-    re_yx.SetInfinity();
-
-    std::vector<BigInt> vec_shift1;
-    std::vector<BigInt> vec_shift2;
-    for(size_t l=0;l<2;l++)
-    {
-        ECPoint re_tmp0;
-        ECPoint re_tmp1;
-        for(size_t j=0;j<n/2;j++)
-        {
-            size_t index_ka=(2*j+l)%n;
-            if(l==0)
-            {
-                vec_shift1=Shift(vec_p0,2*j);
-                re_tmp0=ECPointVectorMul(instance.vec_ciphervalue,vec_shift1);
-                re_tmp1=ECPointVectorMul(instance.vec_pk,vec_shift1);
-            }
-            else
-            {
-                vec_shift2=Shift(vec_p1,2*j);
-                re_tmp0=ECPointVectorMul(instance.vec_ciphervalue,vec_shift2);
-                re_tmp1=ECPointVectorMul(instance.vec_pk,vec_shift2);
-            }
-            re_Cx=re_Cx+re_tmp0*vec_ksi[index_ka];
-            re_yx=re_yx+re_tmp1*vec_ksi[index_ka];
-        }
-        
-    }
-
-    for(auto k=0;k<m;k++)
-    {
-        wek=w.ModExp(k,order);
-        re_Cx=re_Cx+(proof.lovec_oppcipher[k]*(-wek));
-        re_yx=re_yx+(proof.lovec_oppcipherpk[k]*(-wek));
-    }
-    
-    //compute the challenge z
-    for(auto k=0;k<m;k++)
-    {
-        transcript_str += proof.vec_proof_f0[k].ToByteString();
-        transcript_str += proof.vec_proof_f1[k].ToByteString();
-    }
-    transcript_str += proof.proof_Za.ToByteString();
-
-    BigInt z=Hash::StringToBigInt(transcript_str);
-    BigInt zsquare= z*z% order; 
-    BigInt zcube= zsquare*z% order;
-
-    //compute the challenge c
-    transcript_str+=proof.proof_Ayreenc.ToByteString();
-    transcript_str+=proof.proof_ADreenc.ToByteString();
-    transcript_str+=proof.proof_Ab0reenc.ToByteString();
-    transcript_str+=proof.proof_Ab1reenc.ToByteString();
-    transcript_str+=proof.proof_Axreenc.ToByteString();
-    transcript_str+=proof.proof_Au.ToByteString();
-   
-    BigInt c=Hash::StringToBigInt(transcript_str);
-
-    //check Ay 
-    bool Validity=true;
-    ECPoint re_Ayreencright=re_cipher4g*(proof.proof_Ssk)+re_pk*(-c);
-    
-    if(re_Ayreencright!=proof.proof_Ayreenc)
-    {
-        std::cout<<"Ay check is wrong "<<std::endl;
-        Validity=false;
-        
-    }
-    //check AD
-    ECPoint re_ADreencright=pp.g*(proof.proof_Sr)+instance.cipher4D*(-c);
-    if(re_ADreencright!=proof.proof_ADreenc)
-    {
-        std::cout<<"AD check is wrong "<<std::endl;
-        Validity=false;
-       
-    }
-    //check Ab0
-    ECPoint re_Ab0reencright=pp.g*(proof.proof_Sb0)+(re_cipher4D*(-zsquare))*(proof.proof_Ssk)+(re_ciphervalue*(-zsquare))*(-c);
-    if(re_Ab0reencright!=proof.proof_Ab0reenc)
-    {
-        std::cout<<"Ab0 check is wrong "<<std::endl;
-        Validity=false;
-        
-    }
-    //check Ab1
-    ECPoint re_Ab1reencright=pp.g*(proof.proof_Sb1)+(re_cipherrbalright*(zcube))*(proof.proof_Ssk)+(re_cipherrballeft*(zcube))*(-c);
-    if(re_Ab1reencright!=proof.proof_Ab1reenc)
-    {
-        std::cout<<"Ab1 check is wrong "<<std::endl;
-        Validity=false;
-       
-    }
-    
-    //check Ax
-    ECPoint re_Axreencright=re_Cx*(-c)+re_yx*(proof.proof_Sr);
-    if(re_Axreencright!=proof.proof_Axreenc)
-    {
-        std::cout<<"Ax check is wrong "<<std::endl;
-        Validity=false;
-       
-    }
-    //check Au
-    ECPoint re_Auright=instance.gepoch*(proof.proof_Ssk)+instance.uepoch*(-c);
-    if(re_Auright!=proof.proof_Au)
-    {
-        std::cout<<"Au check is wrong "<<std::endl;
-        Validity=false;
-       
-    }
+    Validity = V1 && V2;     
     #ifdef DEBUG
     if (Validity){ 
-        std::cout<< " accepts >>>" << std::endl; 
+        std::cout<< "log size BulletProof accepts >>>" << std::endl; 
     }
     else{
-        std::cout<< " rejects >>>" << std::endl; 
+        std::cout<< "log size BulletProof rejects >>>" << std::endl; 
     }
-    
     #endif
+
     if (Validity){ 
         std::cout<< "proof accepts >>>" << std::endl; 
     }
