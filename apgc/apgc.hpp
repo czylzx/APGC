@@ -16,6 +16,9 @@ this hpp implements the APGC functionality
 #define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
 
+
+//!!!!!!!!!!!!!!!! if you want to invoke the Bulletproofs, must note taux and tx's order ! The order is reversed !!
+
 namespace APGC{
 
 using Serialization::operator<<; 

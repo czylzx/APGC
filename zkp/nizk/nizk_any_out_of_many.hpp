@@ -11,6 +11,7 @@ this hpp implements many_out_of_many proof and adopts the aadcp
 #include <utility>
 #include <iostream>
 
+//!!!!!!!!!!!!!!!! if you want to invoke the Bulletproofs, must note taux and tx's order ! The order is reversed !!
 
 namespace AnyOutOfMany{
     
@@ -206,10 +207,10 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     
     vec_A.clear(); vec_A = {pp.g, pp.h};
     
-    vec_a.clear(); vec_a = {tau1, t1};  
+    vec_a.clear(); vec_a = {t1, tau1};  
     proof.T1 = ECPointVectorMul(vec_A, vec_a); //pp.g * tau1 + pp.h * t1; mul(tau1, pp.g, t1, pp.h);
     
-    vec_a.clear(); vec_a = {tau2, t2};  
+    vec_a.clear(); vec_a = {t2, tau2};  
     proof.T2 = ECPointVectorMul(vec_A, vec_a); //pp.g * tau2 + pp.h * t2; mul(tau2, pp.g, t2, pp.h);    
 
     // compute the challenge x
@@ -267,17 +268,20 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false); 
     ip_pp.vec_g.resize(LEN); 
     std::copy(pp.vec_g.begin(), pp.vec_g.begin()+LEN, ip_pp.vec_g.begin()); // ip_pp.vec_g = pp.vec_g
+    ip_pp.vec_g = ECPointVectorProduct(pp.vec_g, vec_y_inverse_power);  // ip_pp.vec_g = vec_g_new
 
     ip_pp.vec_h.resize(LEN); 
     std::copy(pp.vec_h.begin(), pp.vec_h.begin()+LEN, ip_pp.vec_h.begin()); 
-    ip_pp.vec_h = ECPointVectorProduct(ip_pp.vec_h, vec_y_inverse_power);  // ip_pp.vec_h = vec_h_new  
+    //ip_pp.vec_h = ECPointVectorProduct(ip_pp.vec_h, vec_y_inverse_power);  // ip_pp.vec_h = vec_h_new  
 
     transcript_str += x.ToByteString();  
     BigInt e = Hash::StringToBigInt(transcript_str);   
 
     InnerProduct::Witness ip_witness;
-    ip_witness.vec_a = llx; // ip_witness.vec_a = llx
-    ip_witness.vec_b = rrx; // ip_witness.vec_b = rrx
+    // ip_witness.vec_a = llx; // ip_witness.vec_a = llx
+    // ip_witness.vec_b = rrx; // ip_witness.vec_b = rrx
+    ip_witness.vec_a = rrx; 
+    ip_witness.vec_b = llx; 
 
     InnerProduct::Instance ip_instance;
     ip_pp.u = pp.u * e; //ip_pp.u = u^e 
@@ -332,10 +336,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
     size_t n = 1;
     size_t LEN = pp.com_len * n; // l = nm 
-    std::vector<BigInt> vec_1_power(LEN, bn_1); // vec_unary = 1^nm
+    std::vector<BigInt> vec_1_power(LEN, bn_1); // vec_unary = 1^n
     std::vector<BigInt> vec_short_1_power(pp.com_len, bn_1); 
-    std::vector<BigInt> vec_2_power = GenBigIntPowerVector(LEN, bn_2);
-    std::vector<BigInt> vec_short_2_power = GenBigIntPowerVector(pp.com_len, bn_2);  
+    // std::vector<BigInt> vec_2_power = GenBigIntPowerVector(LEN, bn_2);
+    // std::vector<BigInt> vec_short_2_power = GenBigIntPowerVector(pp.com_len, bn_2);  
     std::vector<BigInt> vec_y_power = GenBigIntPowerVector(LEN, y); 
 
     std::vector<BigInt> vec_adjust_z_power(n+1); // generate z^{j+2} j \in [n]
@@ -353,33 +357,39 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     }
     sum_z = (sum_z * z) % order;  
 
-    // compute delta_yz (pp. 21)    
+    // compute delta_yz 
     BigInt bn_temp1 = BigIntVectorModInnerProduct(vec_1_power, vec_y_power, BigInt(order)); 
-    BigInt bn_temp2 = BigIntVectorModInnerProduct(vec_short_1_power, vec_short_2_power, BigInt(order)); 
+    ///BigInt bn_temp2 = BigIntVectorModInnerProduct(vec_short_1_power, vec_short_2_power, BigInt(order)); 
 
     BigInt bn_c0 = z.ModSub(z_square, order); // z
     bn_temp1 = bn_c0 * bn_temp1; 
-    bn_temp2 = sum_z * bn_temp2; 
+    //bn_temp2 = sum_z * bn_temp2; 
   
-    BigInt delta_yz = bn_temp1.ModSub(bn_temp2, order);  
+    //BigInt delta_yz = bn_temp1.ModSub(bn_temp2, order);
+    BigInt delta_yz = bn_temp1;  
 
 
-    // check Eq (72)  
-    ECPoint LEFT = pp.g * proof.taux + pp.h * proof.tx;  // LEFT = g^{\taux} h^\hat{t}
+    // check  
+    ECPoint LEFT = pp.g * proof.tx + pp.h * proof.taux;  // LEFT = g^{\taux} h^\hat{t}
 
     // the intermediate variables used to compute the right value
-    std::vector<ECPoint> vec_A; 
-    std::vector<BigInt> vec_a;
-    vec_A.resize(n + 3); 
-    vec_a.resize(n + 3);
+    // std::vector<ECPoint> vec_A; 
+    // std::vector<BigInt> vec_a;
+    // vec_A.resize(n + 3); 
+    // vec_a.resize(n + 3);
 
-    std::copy(instance.C.begin(), instance.C.end(), vec_A.begin()); 
-    std::copy(vec_adjust_z_power.begin()+1, vec_adjust_z_power.end(), vec_a.begin()); 
+    // std::copy(instance.C.begin(), instance.C.end(), vec_A.begin()); 
+    // std::copy(vec_adjust_z_power.begin()+1, vec_adjust_z_power.end(), vec_a.begin()); 
 
-    vec_A[n] = pp.h, vec_A[n+1] = proof.T1, vec_A[n+2] = proof.T2;
-    vec_a[n] = delta_yz, vec_a[n+1] = x, vec_a[n+2] = x_square;  
+    // vec_A[n] = pp.h, vec_A[n+1] = proof.T1, vec_A[n+2] = proof.T2;
+    // vec_a[n] = delta_yz, vec_a[n+1] = x, vec_a[n+2] = x_square;  
 
-    ECPoint RIGHT = ECPointVectorMul(vec_A, vec_a);  // RIGHT = V^{z^2} h^{\delta_yz} T_1^x T_2^{x^2} 
+    std::vector<ECPoint> vec_A(3);
+    std::vector<BigInt> vec_a(3);
+    vec_A[0] = pp.g, vec_A[1] = proof.T1, vec_A[2] = proof.T2;
+    vec_a[0] = delta_yz, vec_a[1] = x, vec_a[2] = x_square;
+
+    ECPoint RIGHT = ECPointVectorMul(vec_A, vec_a);  // RIGHT =  g^{\delta_yz} T_1^x T_2^{x^2} 
 
     V1 = (LEFT == RIGHT); 
     #ifdef DEBUG
@@ -397,8 +407,9 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
     ip_pp.vec_h.resize(LEN); 
     std::copy(pp.vec_h.begin(), pp.vec_h.begin()+LEN, ip_pp.vec_h.begin()); 
-    std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(LEN, y_inverse); // y^nm
-    ip_pp.vec_h = ECPointVectorProduct(ip_pp.vec_h, vec_y_inverse_power);  // ip_pp.vec_h = vec_h_new  
+    std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(LEN, y_inverse); // y^n
+    //ip_pp.vec_h = ECPointVectorProduct(ip_pp.vec_h, vec_y_inverse_power);  // ip_pp.vec_h = vec_h_new  
+    ip_pp.vec_g = ECPointVectorProduct(ip_pp.vec_g, vec_y_inverse_power);  // ip_pp.vec_g = vec_g_new
 
     // ip_pp.vec_g = pp.vec_g;
     // ip_pp.vec_h = vec_h_new;  
@@ -418,10 +429,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
     vec_a.resize(2*ip_pp.VECTOR_LEN+4);
     
-    std::vector<BigInt> vec_z_minus_unary(LEN, z_minus); 
+    /*std::vector<BigInt> vec_z_minus_unary(LEN, z_minus); 
     std::move(vec_z_minus_unary.begin(), vec_z_minus_unary.end(), vec_a.begin()); // LEFT += g^{-1 z^n} 
 
-    std::vector<BigInt> vec_rr = BigIntVectorModScalar(vec_y_power, z, BigInt(order)); // z y^nm
+    std::vector<BigInt> vec_rr = BigIntVectorModScalar(vec_y_power, z, BigInt(order)); // z y^n
     std::vector<BigInt> temp_vec_zz; 
     for(auto j = 1; j <= n; j++)
     {
@@ -431,7 +442,26 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
             vec_rr[(j-1)*pp.com_len+i] = (vec_rr[(j-1)*pp.com_len+i] + temp_vec_zz[i]) % order;            
         }
     }
-    std::move(vec_rr.begin(), vec_rr.end(), vec_a.begin()+ip_pp.VECTOR_LEN); 
+    std::move(vec_rr.begin(), vec_rr.end(), vec_a.begin()+ip_pp.VECTOR_LEN); */
+    //we need to simplify the below code
+    td::vector<BigInt> vec_z_minus_unary(LEN, z_minus);
+    std::vector<BigInt> vec_rr = BigIntVectorModScalar(vec_y_power, z, BigInt(order)); // z y^n
+    std::vector<BigInt> temp_vec_zz; 
+    for(auto j = 1; j <= n; j++)
+    {
+        //temp_vec_zz = BigIntVectorModScalar(vec_2_power, vec_adjust_z_power[j], BigInt(order)); 
+        /*for(auto i = 0; i < pp.com_len; i++)
+        {
+            vec_rr[(j-1)*pp.com_len+i] = (vec_rr[(j-1)*pp.com_len+i] + temp_vec_zz[i]) % order;            
+        }*/
+        for(auto i = 0; i < pp.com_len; i++)
+        {
+            vec_rr[(j-1)*pp.com_len+i] = (vec_rr[(j-1)*pp.com_len+i] ) % order;            
+        }
+    }
+    std::move(vec_rr.begin(), vec_rr.end(), vec_a.begin());
+    std::move(vec_z_minus_unary.begin(), vec_z_minus_unary.end(), vec_a.begin()+ip_pp.VECTOR_LEN); // LEFT += g^{-1 z^n}
+
      
     vec_a[2*ip_pp.VECTOR_LEN] = bn_1; 
     vec_a[2*ip_pp.VECTOR_LEN+1] = x; 
