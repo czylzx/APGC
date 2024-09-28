@@ -68,6 +68,7 @@ struct Proof
     BigInt taux, mu, tx; // tx = <l,r>
     BigInt fs;
     InnerProduct::Proof ip_proof;
+    InnerProduct::Proof ip_proof_E;
 
 };
 std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
@@ -266,11 +267,22 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     // transmit llx and rrx via inner product proof
 
     InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false); 
+    InnerProduct::PP ip_pp_E = InnerProduct::Setup(LEN, false);
+    
+    InnerProduct::Witness ip_witness_E;
+    std::vector<BigInt> rrx_E(LEN, bn_1);
+    ip_witness_E.vec_a = llx;
+    ip_witness_E.vec_b = rrx_E;
+    InnerProduct::Instance ip_instance_E;
+
     ip_pp.vec_g.resize(LEN); 
+    ip_pp_E.vec_g.resize(LEN);
+    std::copy(pp.vec_g.begin(), pp.vec_g.begin()+LEN, ip_pp_E.vec_g.begin()); 
     std::copy(pp.vec_g.begin(), pp.vec_g.begin()+LEN, ip_pp.vec_g.begin()); // ip_pp.vec_g = pp.vec_g
     ip_pp.vec_g = ECPointVectorProduct(pp.vec_g, vec_y_inverse_power);  // ip_pp.vec_g = vec_g_new
 
     ip_pp.vec_h.resize(LEN); 
+    ip_pp_E.vec_h.resize(LEN);
     std::copy(pp.vec_h.begin(), pp.vec_h.begin()+LEN, ip_pp.vec_h.begin()); 
     //ip_pp.vec_h = ECPointVectorProduct(ip_pp.vec_h, vec_y_inverse_power);  // ip_pp.vec_h = vec_h_new  
 
@@ -285,6 +297,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
 
     InnerProduct::Instance ip_instance;
     ip_pp.u = pp.u * e; //ip_pp.u = u^e 
+    ip_pp_E.u = pp.u * e; 
 
     vec_A.resize(2*LEN+1); 
     std::copy(ip_pp.vec_g.begin(), ip_pp.vec_g.end(), vec_A.begin()); 
@@ -297,8 +310,9 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     vec_a[2*LEN] = proof.tx; 
 
     ip_instance.P = ECPointVectorMul(vec_A, vec_a);  
- 
+
     InnerProduct::Prove(ip_pp, ip_instance, ip_witness, transcript_str, proof.ip_proof); 
+    //InnerProduct::Prove(ip_pp_E, ip_instance_E, ip_witness_E, transcript_str, proof.ip_proof_E); 
 
     #ifdef DEBUG
         std::cout << "Any prove Succeeds >>>" << std::endl; 
@@ -443,22 +457,20 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
         }
     }
     std::move(vec_rr.begin(), vec_rr.end(), vec_a.begin()+ip_pp.VECTOR_LEN); */
+
     //we need to simplify the below code
     td::vector<BigInt> vec_z_minus_unary(LEN, z_minus);
     std::vector<BigInt> vec_rr = BigIntVectorModScalar(vec_y_power, z, BigInt(order)); // z y^n
     std::vector<BigInt> temp_vec_zz; 
-    for(auto j = 1; j <= n; j++)
+    /*for(auto j = 1; j <= n; j++)
     {
-        //temp_vec_zz = BigIntVectorModScalar(vec_2_power, vec_adjust_z_power[j], BigInt(order)); 
-        /*for(auto i = 0; i < pp.com_len; i++)
-        {
-            vec_rr[(j-1)*pp.com_len+i] = (vec_rr[(j-1)*pp.com_len+i] + temp_vec_zz[i]) % order;            
-        }*/
+        temp_vec_zz = BigIntVectorModScalar(vec_2_power, vec_adjust_z_power[j], BigInt(order)); 
         for(auto i = 0; i < pp.com_len; i++)
         {
-            vec_rr[(j-1)*pp.com_len+i] = (vec_rr[(j-1)*pp.com_len+i] ) % order;            
+            vec_rr[(j-1)*pp.com_len+i] = (vec_rr[(j-1)*pp.com_len+i] + temp_vec_zz[i]) % order;            
         }
-    }
+        
+    }*/
     std::move(vec_rr.begin(), vec_rr.end(), vec_a.begin());
     std::move(vec_z_minus_unary.begin(), vec_z_minus_unary.end(), vec_a.begin()+ip_pp.VECTOR_LEN); // LEFT += g^{-1 z^n}
 
