@@ -109,7 +109,7 @@ void PrintProof(Proof &proof)
     InnerProduct::PrintProof(proof.ip_proof); 
 }
 
-PP Setup(size_t com_len, size_t ,Pedersen::PP &com_part)
+PP Setup(size_t com_len, Pedersen::PP &com_part)
 {
     PP pp;
     pp.com_len = com_len;
@@ -330,7 +330,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     
 }
 
-bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof)
+bool Verify(PP &pp, Instance &instance, Proof &proof, std::string &transcript_str)
 {
     #ifdef DEBUG
         std::cout << "begin to check the proof" << std::endl; 
