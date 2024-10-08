@@ -7,7 +7,7 @@ this hpp implements many_out_of_many proof and adopts the aadcp
 #include "../../crypto/hash.hpp"
 #include "../../commitment/pedersen.hpp"
 #include "../../utility/polymul.hpp"
-#include "innerproduct_proof.hpp" 
+#include "../bulletproofs/innerproduct_proof.hpp" 
 #include <utility>
 #include <iostream>
 
@@ -477,7 +477,7 @@ bool Verify(PP &pp, Instance &instance, Proof &proof, std::string &transcript_st
     //we need to simplify the below code
     std::vector<BigInt> vec_z_minus_unary(LEN, z_minus);
     std::vector<BigInt> vec_rr = BigIntVectorModScalar(vec_y_power, z, BigInt(order)); // z y^n
-    BigInt z_minus = z.ModNegate(order);
+    //BigInt z_minus = z.ModNegate(order);
     std::vector<BigInt> vec_zz_P = BigIntVectorModScalar(vec_y_power, z_minus, BigInt(order)); // -z y^n
     std::vector<BigInt> temp_vec_zz; 
     /*for(auto j = 1; j <= n; j++)

@@ -17,7 +17,7 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
     AnyOutOfMany::Proof proof;
 
     Pedersen::PP pp_com;
-    pp_com = Pedersen::Setup(N_max);
+    pp_com = Pedersen::Setup(1);
 
     pp=AnyOutOfMany::Setup(N_max, pp_com);
     

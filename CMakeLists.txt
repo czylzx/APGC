@@ -17,7 +17,7 @@ ENDIF()
 FIND_PACKAGE(OpenMP REQUIRED)
 
 # FIND_PACKAGE(absl REQUIRED)
-
+add_definitions(-w)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fpic -Wno-deprecated-declarations -Wno-unused-result -Xpreprocessor -O3")
 
@@ -196,8 +196,8 @@ configure_file(${PROJECT_SOURCE_DIR}/config/config.h.in ${PROJECT_SOURCE_DIR}/co
 ADD_EXECUTABLE(test_adcp test/test_adcp.cpp)
 TARGET_LINK_LIBRARIES(test_adcp ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_nizk_any_out_of_many test/test_nizk_any_out_of_many.cpp)
-TARGET_LINK_LIBRARIES(test_nizk_any_out_of_many ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+ADD_EXECUTABLE(test_any_out_of_many test/test_any_out_of_many.cpp)
+TARGET_LINK_LIBRARIES(test_any_out_of_many ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 # mcl
 # add_executable(test_mcl test/test_mcl.cpp)
