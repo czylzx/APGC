@@ -17,7 +17,7 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
     AnyOutOfMany::Proof proof;
 
     Pedersen::PP pp_com;
-    pp_com = Pedersen::Setup(1);
+    pp_com = Pedersen::Setup(2);
 
     pp=AnyOutOfMany::Setup(N_max, pp_com);
     
@@ -25,7 +25,7 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
     std::vector<BigInt> vec_b(N_max);
 
     size_t sum_b = 0;
-    for(auto i=0;i<N_max;i++)
+    for(auto i = 0; i < N_max; i++)
     {
         srand(time(0));
         size_t random_b = rand() % 2;
@@ -47,15 +47,15 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
         }  
     }
 
-    for(auto i=0;i<N_sender;i++)
+    for(auto i = 0; i < N_sender; i++)
     {
-        vec_s[i]=GenRandomBigIntLessThan(order);
+        vec_s[i] = GenRandomBigIntLessThan(order);
     }
-    witness.vec_s=vec_s;
-    witness.vec_b=vec_b;
-    std::vector<BigInt> value ={bn_0};
+    witness.vec_s = vec_s;
+    witness.vec_b = vec_b;
+    std::vector<BigInt> value = {bn_0};
     size_t j = 0;
-    for(auto i=0;i<N_sender;i++)
+    for(auto i = 0; i < N_sender; i++)
     {
         if(vec_b[i] == bn_1)
         {
