@@ -15,12 +15,12 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
     AnyOutOfMany::Instance instance;
     AnyOutOfMany::Witness witness;
     AnyOutOfMany::Proof proof;
-
+    
     Pedersen::PP pp_com;
-    pp_com = Pedersen::Setup(2);
+    pp_com = Pedersen::Setup(1);
 
     pp=AnyOutOfMany::Setup(N_max, pp_com);
-    
+  
     std::vector<BigInt> vec_s(N_sender);
     std::vector<BigInt> vec_b(N_max);
 
@@ -55,7 +55,7 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
     witness.vec_b = vec_b;
     std::vector<BigInt> value = {bn_0};
     size_t j = 0;
-    for(auto i = 0; i < N_sender; i++)
+    for(auto i = 0; i < N_max; i++)
     {
         if(vec_b[i] == bn_1)
         {
@@ -70,11 +70,9 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
         
     }
 
-    
-   
     std::string transcript_str = "";
     AnyOutOfMany::Prove(pp, instance, witness, proof, transcript_str);
-    
+
     transcript_str = "";
     bool testval = AnyOutOfMany::Verify(pp, instance, proof, transcript_str);
     
@@ -91,8 +89,8 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
 int main()
 {
     CRYPTO_Initialize(); 
-    size_t N_max = 8;
-    size_t N_sender;
+    size_t N_max = 4;
+    size_t N_sender = 2;
    
     test_any_out_of_many(N_max, N_sender);
 

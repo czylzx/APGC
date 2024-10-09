@@ -130,15 +130,16 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     auto start_time = std::chrono::steady_clock::now();
 
     size_t LEN = pp.com_len;
-
+    std::cout<<"LEN = "<<LEN<<std::endl;
     std::vector<BigInt> vec_aL(LEN);
     std::vector<BigInt> vec_aR(LEN);
 
     std::vector<BigInt> vec_1_power(LEN, bn_1); // vec_unary = 1^n
 
     vec_aL = witness.vec_b;
+
     vec_aR = BigIntVectorModSub(vec_aL, vec_1_power,  BigInt(order)); // Eq (42) -- aR = aL - 1^n
-    
+   
     BigInt alpha = GenRandomBigIntLessThan(order);
 
     std::vector<ECPoint> vec_A(2*LEN+1);
@@ -172,7 +173,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     BigInt y_inverse = y.ModInverse(order);
 
     std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(LEN, y_inverse); // y^{-i+1}
-
+ 
 
     transcript_str += proof.S.ToByteString(); 
     BigInt z = Hash::StringToBigInt(transcript_str);
@@ -187,7 +188,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     {
         vec_adjust_z_power[j] = (z * vec_adjust_z_power[j-1]) % order; //pow(z, j+1, q); description below Eq (71)
     }  
-
+    
     // compute l(X) 
     std::vector<BigInt> vec_z_unary(LEN, z); // z \cdot 1^n
     std::vector<BigInt> vec_zz_temp = BigIntVectorModSub(vec_aL, vec_z_unary, BigInt(order)); // vec_t = aL - z1^n
@@ -196,7 +197,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
 
     std::vector<BigInt> poly_ll1 = BigIntVectorModProduct(vec_y_power, vec_sL, BigInt(order)); //y^n sL X
 
-
+    
     // compute r(X)     
     std::vector<BigInt> poly_rr0 = BigIntVectorModAdd(vec_aR, vec_z_unary, BigInt(order)); // aR + z1^n
     
@@ -236,12 +237,11 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
 
     vec_zz_temp = BigIntVectorModScalar(poly_rr1, x, BigInt(order)); 
     std::vector<BigInt> rrx = BigIntVectorModAdd(poly_rr0, vec_zz_temp, BigInt(order)); 
-
+;
     proof.tx = BigIntVectorModInnerProduct(llx, rrx, BigInt(order));    
 
-
     proof.E = ECPointVectorMul(instance.vec_com, poly_ll1); // E = \prod_{i=1}^{n} P_i^{{y^N} \circ b_i}
-    
+
     BigInt rs = GenRandomBigIntLessThan(order);
     std::vector<BigInt> vec_com_value = {bn_0};
     proof.E = proof.E + Pedersen::Commit(pp.com_part, vec_com_value, -rs); // E = E + com(0, -rs)
@@ -255,7 +255,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     // compute proof.mu = (alpha + beta*x) %q;  
     proof.mu = (alpha + beta * x) % order; 
     proof.fs = bn_0;
-    
+
     size_t k = witness.vec_s.size();
     size_t j = 0;
     for(auto i = 0; i < LEN; i++)
@@ -275,11 +275,9 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     proof.fs = (rs * x + proof.fs) % order;
 
     // transmit llx and rrx via inner product proof
-
+    std::cout<<"begin to prove inner product proof"<<std::endl;
     InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false); 
-    InnerProduct::PP ip_pp_E = InnerProduct::Setup(LEN, false);
-    
-
+    std::cout<<"InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false) Success "<<std::endl;
     ip_pp.vec_g.resize(LEN); 
     std::vector<ECPoint> com_new_g(LEN);
     ECPoint com_new;
