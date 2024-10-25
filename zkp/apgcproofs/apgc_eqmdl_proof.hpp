@@ -20,9 +20,12 @@ namespace EqmdlProduct
         size_t LOG_VECTOR_LEN; // LOG_VECTOR_LEN = log(VECTOR_LEN)
 
         // size of the vector = VECTOR_LEN
-        std::vector<ECPoint> vec_g{VECTOR_LEN};
-        std::vector<ECPoint> vec_h{VECTOR_LEN};
-        std::vector<ECPoint> vec_p{VECTOR_LEN};
+        //std::vector<ECPoint> vec_g{VECTOR_LEN};
+        //std::vector<ECPoint> vec_h{VECTOR_LEN};
+        //std::vector<ECPoint> vec_p{VECTOR_LEN};
+        std::vector<ECPoint> vec_g;
+        std::vector<ECPoint> vec_h;
+        std::vector<ECPoint> vec_p;
         // ECPoint u;
     };
 

@@ -11,8 +11,9 @@ void GenRandomEqmdlProductInstanceWitness(EqmdlProduct::PP &pp, EqmdlProduct::In
 
     // InnerProduct_Instance_new(instance); 
     witness.vec_a = GenRandomBigIntVectorLessThan(pp.VECTOR_LEN, BigInt(order)); 
-    instance.G = GenRandomECPoint();
-    instance.H = GenRandomECPoint();
+    instance.G = ECPointVectorMul(pp.vec_g, witness.vec_a);
+    instance.H = ECPointVectorMul(pp.vec_h, witness.vec_a);
+
     instance.P = GenRandomECPoint();
     // // witness.vec_b = GenRandomBigIntVectorLessThan(pp.VECTOR_LEN, BigInt(order)); 
 
@@ -55,7 +56,7 @@ void test_eqmdlproduct_proof()
     start_time = std::chrono::steady_clock::now(); // start to count the time
     transcript_str = ""; 
     transcript_str += instance.P.ToByteString(); 
-    pp = EqmdlProduct::Setup(VECTOR_LEN, true);
+    //pp = EqmdlProduct::Setup(VECTOR_LEN, true);
     bool va = EqmdlProduct::Verify(pp, instance, transcript_str, proof); 
     end_time = std::chrono::steady_clock::now(); // end to count the time
 
