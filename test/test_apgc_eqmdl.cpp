@@ -15,7 +15,7 @@ void GenRandomEqmdlProductInstanceWitness(EqmdlProduct::PP &pp, EqmdlProduct::In
     instance.H = ECPointVectorMul(pp.vec_h, witness.vec_a);
     instance.P = ECPointVectorMul(pp.vec_p, witness.vec_a);
 
-    instance.P = GenRandomECPoint();
+    //instance.P = GenRandomECPoint();
     // // witness.vec_b = GenRandomBigIntVectorLessThan(pp.VECTOR_LEN, BigInt(order)); 
 
     // //instance.u = GenRandomGenerator();
