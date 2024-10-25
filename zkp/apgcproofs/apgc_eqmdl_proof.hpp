@@ -377,9 +377,9 @@ namespace EqmdlProduct
         AssignECPointVector(vec_pL, pp.vec_p, "left");
         AssignECPointVector(vec_pR, pp.vec_p, "right");
 
-        ECPoint G, H, P;
+        ECPoint G = instance.G, H = instance.H, P = instance.P;
 
-        PP pp_sub = Setup(pp.VECTOR_LEN / 2, false);
+        PP pp_sub;
 
         for (auto i = 0; i < pp.LOG_VECTOR_LEN; i++)
         {
@@ -410,9 +410,9 @@ namespace EqmdlProduct
             // generate new instance G' H' P'
             Instance instance_sub;
 
-            vec_G_A = {proof.vec_GL[i], instance.G, proof.vec_GR[i]};
-            vec_H_A = {proof.vec_HL[i], instance.H, proof.vec_HR[i]};
-            vec_P_A = {proof.vec_PL[i], instance.P, proof.vec_PR[i]};
+            vec_G_A = {proof.vec_GL[i], G, proof.vec_GR[i]};
+            vec_H_A = {proof.vec_HL[i], H, proof.vec_HR[i]};
+            vec_P_A = {proof.vec_PL[i], P, proof.vec_PR[i]};
             std::vector<BigInt> vec_a(3);
             vec_a = {x.ModSquare(order), x, bn_1};
 
