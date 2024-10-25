@@ -381,11 +381,13 @@ namespace EqmdlProduct
 
         PP pp_sub = Setup(pp.VECTOR_LEN / 2, false);
 
-        for (auto i = 0; i < log(pp.LOG_VECTOR_LEN); i++)
+        for (auto i = 0; i < pp.LOG_VECTOR_LEN; i++)
         {
 
             // compute the challenge x
-            transcript_str += proof.vec_GL[i].ToByteString() + proof.vec_GR[i].ToByteString() + proof.vec_HL[i].ToByteString() + proof.vec_HR[i].ToByteString() + proof.vec_PL[i].ToByteString() + proof.vec_PR[i].ToByteString();
+            transcript_str += proof.vec_GL[i].ToByteString() + proof.vec_GR[i].ToByteString()
+                            + proof.vec_HL[i].ToByteString() + proof.vec_HR[i].ToByteString()  
+                            + proof.vec_PL[i].ToByteString() + proof.vec_PR[i].ToByteString();
             BigInt x = Hash::StringToBigInt(transcript_str);
 
             std::cout << "1111 " ;
