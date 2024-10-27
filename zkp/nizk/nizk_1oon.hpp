@@ -152,13 +152,13 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
         std::vector<size_t> vec_index = Decompose(j, 2, m); 
  
         for(auto b = 0; b < m; b++){      
-            if(vec_index[b] == vec_l[b]){
+            if(vec_index[b] == 1){
                 A[b][0] = vec_a[b];
-                A[b][1] = bn_1;
+                A[b][1] = vec_l[b];
             }
             else{
                 A[b][0] = bn_0 - vec_a[b];
-                A[b][1] = bn_0;
+                A[b][1] = bn_1 - vec_l[b];
             }    
         } 
         std::vector<BigInt> p_j = PolyMul(A);
