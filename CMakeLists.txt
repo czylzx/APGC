@@ -189,6 +189,12 @@ configure_file(${PROJECT_SOURCE_DIR}/config/config.h.in ${PROJECT_SOURCE_DIR}/co
 ADD_EXECUTABLE(test_apgc_eqmdl test/test_apgc_eqmdl.cpp)
 TARGET_LINK_LIBRARIES(test_apgc_eqmdl ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
+ADD_EXECUTABLE(test_apgc_wellform test/test_apgc_wellform.cpp)
+TARGET_LINK_LIBRARIES(test_apgc_wellform ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
+ADD_EXECUTABLE(test_apgc_sumzero test/test_apgc_sumzero.cpp)
+TARGET_LINK_LIBRARIES(test_apgc_sumzero ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
 #ADD_EXECUTABLE(test_apgc_wellform test/test_apgc_wellform.cpp)
 #TARGET_LINK_LIBRARIES(test_apgc_wellform ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 

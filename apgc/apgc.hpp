@@ -12,6 +12,7 @@ this hpp implements the APGC functionality
 #include "../zkp/bulletproofs/bullet_proof.hpp"    // implement Log Size Bulletproof
 #include "../gadget/range_proof.hpp"
 #include "../utility/serialization.hpp"
+#include "../zkp/apgcproofs/apgc_wellform.hpp"
 
 #define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
@@ -61,7 +62,7 @@ struct SuperviseResult{
 template <typename T>
 std::string GetCTxFileName(T &newCTx)
 {
-    std::string ctx_file = newCTx.pks.ToHexString() + "_" + newCTx.sn.ToHexString()+".ctx"; 
+    std::string ctx_file = newCTx.sn.ToHexString()+".ctx"; 
     return ctx_file; 
 }
 
@@ -240,9 +241,10 @@ struct ToManyCTx{
     //TwistedExponentialElGamal::CT sender_transfer_ct;
     std::vector<ECPoint> vec_pk;  
     std::vector<TwistedExponentialElGamal::MRCT> vec_participant_transfer_ct;    // (X0 = pka^r, X1 = pkr^r, Y = g^r h^v)
-
+    std::vector<TwistedExponentialElGamal::CT> vec_participant_balance_ct;  
 
     // validity proof
+    WellFormProduct::Proof plaintext_wellformed_proof;
     //TwistedExponentialElGamal::CT refresh_sender_updated_balance_ct;  // fresh encryption of updated balance (randomness is known)
     //PlaintextKnowledge::Proof plaintext_knowledge_proof; // NIZKPoK for refresh ciphertext (X^*, Y^*)
     //DLOGEquality::Proof correct_refresh_proof;     // fresh updated balance is correct
@@ -329,6 +331,7 @@ std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
 ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, std::vector<ECPoint> &vec_pkr, std::vector<AnonSet> &vec_AnonSet, size_t sender_index, std::vector<size_t> vec_index)
 { 
     ToManyCTx newCTx; 
+    newCTx.sn = GenRandomBigIntLessThan(order);
     int k = vec_v.size();
     size_t n = vec_AnonSet.size(); 
     if(k >= n){
@@ -393,7 +396,8 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     size_t cnt=0;
     for(auto i = 0; i < n; i++)
     {
-       
+
+       newCTx.vec_participant_balance_ct[i] = vec_AnonSet[i].balance_ct;
        if(i == sender_index)
        {
             newCTx.vec_pk[i] = Acct_sender.pk;
@@ -428,7 +432,49 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     #ifdef DEMO
         std::cout << "2. generate NIZKPoK for tx" << std::endl;  
     #endif
+    WellFormProduct::PP plaintext_wellform_product_pp = WellFormProduct::Setup(n);
+    WellFormProduct::Instance plaintext_wellform_product_instance;
 
+    plaintext_wellform_product_instance.vec_pk = newCTx.vec_pk;
+    plaintext_wellform_product_instance.vec_CL.resize(n);
+    plaintext_wellform_product_instance.vec_CR.resize(n);
+    for(auto i = 0; i < n; i++){
+        plaintext_wellform_product_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[0];
+        plaintext_wellform_product_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+    
+    WellFormProduct::Witness plaintext_wellform_product_witness;
+
+    plaintext_wellform_product_witness.vec_r = vec_r;
+    std::vector<BigInt> vec_v_plaintext_wellform(n);
+    cnt=0;
+    for(auto i = 0; i < n; i++)
+    {
+        if(i == sender_index)
+        {
+            vec_v_plaintext_wellform[i] = -v;
+        }
+        else
+        {
+            if(i == vec_index[cnt])
+            {
+                vec_v_plaintext_wellform[i] = vec_v[cnt];
+                cnt++;
+            }
+            else
+            {
+            vec_v_plaintext_wellform[i] = bn_0;
+            }
+        }
+        
+    }
+    plaintext_wellform_product_witness.vec_v = vec_v_plaintext_wellform;
+
+    std::string transcript_str = "";
+    WellFormProduct::Proof plaintext_wellform_product_proof;
+    newCTx.plaintext_wellformed_proof = WellFormProduct::Prove(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
+                                        plaintext_wellform_product_witness, transcript_str, plaintext_wellform_product_proof);
+    plaintext_wellform_product_instance.vec_pk = newCTx.vec_pk;
     #ifdef DEMO
         PrintSplitLine('-'); 
     #endif
