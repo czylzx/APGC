@@ -89,8 +89,6 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
     std::vector<size_t> vec_l = Decompose(witness.l, 2, m);
 
-    std::cout << "vec_l = " << witness.l <<std::endl;
-
     BigInt rB = GenRandomBigIntLessThan(order);
     
     proof.B = pp.vec_g[0] * vec_l[0];
@@ -99,7 +97,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     }
     proof.B += pp.u * rB;
     
-    //.................proof lin bit
+    //proof lin bit
     LinBit::PP linbit_pp = LinBit::Setup(m);
     linbit_pp.h = pp.u;
     for(auto i=0;i<m;i++){
@@ -144,9 +142,8 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
     std::vector<BigInt> vec_rho = GenRandomBigIntVectorLessThan(m,order);
     
-    //..................p_j_d
+    //compute p_j_d
     std::vector<std::vector<BigInt>> P; 
-
 
     for(auto j = 0; j < N; j++){
         std::vector<std::vector<BigInt>> A(m, std::vector<BigInt>(2));        
@@ -168,11 +165,11 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
         P.emplace_back(p_j); 
     }
 
-    //above -- p_j_d
+    //compute C_deg
 
     proof.vec_C = GenRandomECPointVector(m);
     for(auto d=0; d < m; d++){
-        proof.vec_C[d] = instance.vec_c[0] * P[0][d] + pp.g * vec_rho[d];
+        proof.vec_C[d] = instance.vec_c[0] * P[0][d];
         for(auto j=1; j<N; j++){
             proof.vec_C[d] += instance.vec_c[j] * P[j][d];
         }
@@ -185,31 +182,16 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     for(auto k = 1; k <= m; k++){
         exp_x[k] = exp_x[k-1] * x % order; 
     }
-    std::vector<BigInt> ress(2,bn_0);
-    ress[0] = x;
-    PrintBigIntVector(ress,"");
-
-    std::vector<BigInt> res(N, bn_0);
-    for(auto j=0;j<N;j++){
-        for(auto i=0;i<m;i++){
-            res[j] = (res[j] + (P[j][i] * exp_x[i] % order)) % order;
-    }
-    }
-    res[witness.l] = res[witness.l] + exp_x[m] % order;
-    PrintBigIntVector(res,"");
-    std::cout<<"-----------"<<std::endl;
 
     proof.zd = witness.r * exp_x[m] % order;
     for(auto d=0;d<m;d++){
-        proof.zd = ((proof.zd - (vec_rho[d] * exp_x[d]) % order)+ order) % order;
+        proof.zd = ((proof.zd - (vec_rho[d] * exp_x[d] % order))+ order) % order;
     }
 
     return proof;
 
 }
 
-
-// check NIZK proof PI for Ci = Enc(pki, m; r) the witness is (r1, r2, m)
 bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof)
 {
     size_t m = pp.vec_g.size();
@@ -218,13 +200,11 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
         N = N * 2;
     }
 
-
     transcript_str += proof.A.ToByteString();
     transcript_str += proof.C.ToByteString();
     transcript_str += proof.D.ToByteString();
      
     // compute the challenge
-    
     BigInt x = Hash::StringToBigInt(transcript_str); 
 
     std::vector<bool> vec_condition(2, false);
@@ -236,7 +216,6 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
         linbit_pp.vec_g[i] = pp.vec_g[i];
     }
     
-
     LinBit::Instance linbit_instance; 
     linbit_instance.P = proof.B;
     
@@ -261,17 +240,15 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     for(auto k = 1; k <= m; k++){
         exp_x[k] = exp_x[k-1] * x % order; 
     }
-    std::vector<BigInt> res(2,bn_0);
-    res[0] = x;
-    PrintBigIntVector(res,"");
+
     //right part
-    ECPoint right = proof.vec_C[0] * (bn_0-exp_x[0]);
+    ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order);
     for(auto d=1;d<m;d++){
-        right += proof.vec_C[d] * (bn_0-exp_x[d]);
+        right += proof.vec_C[d] * (bn_0 - exp_x[d] + order);
     }
     
     //left part
-    //..................p_j_d
+    //compute p_j(x)
     std::vector<BigInt> vec_P = GenRandomBigIntVectorLessThan(N,order); 
 
     for(auto j = 0; j < N; j++){
@@ -287,15 +264,12 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
             }    
         } 
     }
-    PrintBigIntVector(vec_P,"");
+    
     ECPoint left = instance.vec_c[0] * vec_P[0];
     for(auto i=1;i<N;i++){
         left += instance.vec_c[i] * vec_P[i];
     }
-    // std::vector<ECPoint> ecp = GenRandomECPointVector(2);
-    // ecp[0] = left + right;
-    // ecp[1] = pp.g * proof.zd;
-    // PrintECPointVector(ecp,"");
+
     if((left + right) == (pp.g * proof.zd)){ 
         vec_condition[1] = true; 
     }
