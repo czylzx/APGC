@@ -123,7 +123,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.D = LB_proof.D;
     proof.zA = LB_proof.zA;
     proof.zC = LB_proof.zC;
-    proof.vec_f = GenRandomBigIntVectorLessThan(m,order);
+    proof.vec_f = GenRandomBigIntVectorLessThan(m,order);// only define is enough
     for(auto i=0;i<m;i++){
         proof.vec_f[i] = LB_proof.vec_f[i];
     }
@@ -181,7 +181,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     std::vector<BigInt> exp_x(m+1);
     exp_x[0] = bn_1;  
     for(auto k = 1; k <= m; k++){
-        exp_x[k] = exp_x[k-1] * x; 
+        exp_x[k] = exp_x[k-1] * x % mod; 
     }
     std::vector<BigInt> ress(2,bn_0);
     ress[0] = x;
