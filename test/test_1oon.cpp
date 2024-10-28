@@ -9,7 +9,7 @@ void GenRandomDDHInstanceWitness(_1oon::PP &pp, _1oon::Instance &instance,
     // generate a true statement (false with overwhelming probability)
     PrintSplitLine('-'); 
     if (flag == true){
-        std::cout << "generate a 1OON tuple >>>" << std::endl;
+        std::cout << "generate a One Out Of Many tuple >>>" << std::endl;
     } 
     else{
         std::cout << "generate a random tuple >>>" << std::endl; 
@@ -50,10 +50,8 @@ void test_nizk_1oon(bool flag)
 
     GenRandomDDHInstanceWitness(pp, instance, witness, flag); 
     auto start_time = std::chrono::steady_clock::now(); // start to count the time
-
     transcript_str = "";
     _1oon::Proof proof = _1oon::Prove(pp, instance, witness, transcript_str);
-    
     auto end_time = std::chrono::steady_clock::now(); // end to count the time
     auto running_time = end_time - start_time;
     std::cout << "1oon proof generation takes time = " 
@@ -61,10 +59,8 @@ void test_nizk_1oon(bool flag)
 
 
     start_time = std::chrono::steady_clock::now(); // start to count the time
-    
     transcript_str = "";
     _1oon::Verify(pp, instance, transcript_str, proof);
-
     end_time = std::chrono::steady_clock::now(); // end to count the time
     running_time = end_time - start_time;
     std::cout << "1oon proof verification takes time = " 
@@ -79,7 +75,7 @@ int main()
     CRYPTO_Initialize();  
     
     test_nizk_1oon(true);
-    //test_nizk_1oon(false); 
+    test_nizk_1oon(false); 
 
     CRYPTO_Finalize(); 
 
