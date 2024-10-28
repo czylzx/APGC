@@ -89,11 +89,13 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
     std::vector<size_t> vec_l = Decompose(witness.l, 2, m);
 
+    std::cout << "vec_l = " << witness.l <<std::endl;
+
     BigInt rB = GenRandomBigIntLessThan(order);
     
     proof.B = pp.vec_g[0] * vec_l[0];
     for(auto i=1; i<m; i++){
-        proof.B += pp.vec_g[i] * vec_l[i];
+        proof.B += pp.vec_g[i] * vec_l[i] ;
     }
     proof.B += pp.u * rB;
     
@@ -181,7 +183,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     std::vector<BigInt> exp_x(m+1);
     exp_x[0] = bn_1;  
     for(auto k = 1; k <= m; k++){
-        exp_x[k] = exp_x[k-1] * x % mod; 
+        exp_x[k] = exp_x[k-1] * x % order; 
     }
     std::vector<BigInt> ress(2,bn_0);
     ress[0] = x;
@@ -190,15 +192,16 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     std::vector<BigInt> res(N, bn_0);
     for(auto j=0;j<N;j++){
         for(auto i=0;i<m;i++){
-            res[j] += P[j][i] * exp_x[i];
+            res[j] = (res[j] + (P[j][i] * exp_x[i] % order)) % order;
     }
     }
+    res[witness.l] = res[witness.l] + exp_x[m] % order;
     PrintBigIntVector(res,"");
     std::cout<<"-----------"<<std::endl;
 
-    proof.zd = witness.r * exp_x[m];
+    proof.zd = witness.r * exp_x[m] % order;
     for(auto d=0;d<m;d++){
-        proof.zd = proof.zd - (vec_rho[d] * exp_x[d]);
+        proof.zd = ((proof.zd - (vec_rho[d] * exp_x[d]) % order)+ order) % order;
     }
 
     return proof;
@@ -256,7 +259,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     std::vector<BigInt> exp_x(m+1);
     exp_x[0] = bn_1;  
     for(auto k = 1; k <= m; k++){
-        exp_x[k] = exp_x[k-1] * x; 
+        exp_x[k] = exp_x[k-1] * x % order; 
     }
     std::vector<BigInt> res(2,bn_0);
     res[0] = x;
@@ -277,10 +280,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
  
         for(auto b = 0; b < m; b++){        
             if(vec_index[b] == 1){
-                vec_P[j] = vec_P[j] * proof.vec_f[b];
+                vec_P[j] = vec_P[j] * proof.vec_f[b] % order;
             }
             else{
-                vec_P[j] = vec_P[j] * (x - proof.vec_f[b]);
+                vec_P[j] = vec_P[j] * ((x - proof.vec_f[b] + order) % order) % order;
             }    
         } 
     }

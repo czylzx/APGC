@@ -206,6 +206,9 @@ TARGET_LINK_LIBRARIES(test_adcp ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 ADD_EXECUTABLE(test_any_out_of_many test/test_any_out_of_many.cpp)
 TARGET_LINK_LIBRARIES(test_any_out_of_many ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
+ADD_EXECUTABLE(test_1oon test/test_1oon.cpp)
+TARGET_LINK_LIBRARIES(test_1oon ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
 # mcl
 # add_executable(test_mcl test/test_mcl.cpp)
 # target_link_libraries(test_mcl libmcl.a libgmp.a)

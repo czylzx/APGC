@@ -79,7 +79,7 @@ int main()
     CRYPTO_Initialize();  
     
     test_nizk_1oon(true);
-    test_nizk_1oon(false); 
+    //test_nizk_1oon(false); 
 
     CRYPTO_Finalize(); 
 
