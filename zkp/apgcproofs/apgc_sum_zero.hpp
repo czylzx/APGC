@@ -38,11 +38,11 @@ namespace SumZero
         BigInt z; 
     };
 
-    PP Setup(size_t n)
+    PP Setup(ECPoint g, size_t n)
     {
         PP pp;
         pp.n = n;
-        pp.g = GenRandomGenerator();                                  
+        pp.g = g;                                  
         return pp;
     }
 

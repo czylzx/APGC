@@ -50,16 +50,23 @@ namespace WellFormProduct
         BigInt fg, fcr;
         EqmdlProduct::Proof eqmdl_proof;
     };
+    /*struct ConRandom
+    {
+        BigInt c;
+        BigInt e;
+    };*/
 
     std::ofstream &operator<<(std::ofstream &fout, const WellFormProduct::Proof &proof)
     {
         // fout << proof.G << proof.c << proof.AG << proof.ACL << proof.ACR << proof.e << proof.z << proof.fg << proof.fcr;
+        fout << proof.G << proof.AG << proof.ACL << proof.ACR << proof.fg << proof.fcr;
         return fout;
     }
 
     std::ifstream &operator>>(std::ifstream &fin, WellFormProduct::Proof &proof)
     {
         // fin >> proof.G >> proof.c >> proof.AG >> proof.ACL >> proof.ACR >> proof.e >> proof.z >> proof.fg >> proof.fcr;
+        fin >> proof.G >> proof.AG >> proof.ACL >> proof.ACR >> proof.fg >> proof.fcr;
         return fin;
     }
 
@@ -114,13 +121,13 @@ namespace WellFormProduct
     }
 
     /*  Setup algorithm */
-    PP Setup(size_t VECTOR_LEN)
+    PP Setup(ECPoint g, ECPoint h, size_t VECTOR_LEN)
     {
 
         PP pp;
         pp.VECTOR_LEN = VECTOR_LEN;
-        pp.g = GenRandomGenerator();// need to be modified
-        pp.h = GenRandomGenerator();// need to be modified
+        pp.g = g;
+        pp.h = h;
         pp.u = GenRandomGenerator();
         pp.vec_g = GenRandomECPointVector(VECTOR_LEN);
 

@@ -3,6 +3,7 @@
 #include "../zkp/apgcproofs/apgc_sum_zero.hpp"
 #include "../crypto/setup.hpp"
 #include "../commitment/pedersen.hpp"
+#include "../pke/twisted_exponential_elgamal.hpp"
 
 void GenRandomSumzeroProductInstanceWitness(SumZero::PP &pp, SumZero::Instance &instance, SumZero::Witness &witness)
 {
@@ -25,7 +26,8 @@ void test_sumzero_proof()
     PrintSplitLine('-');
     std::cout << "begin the test of sum_zero.hpp >>>" << std::endl;
 
-    SumZero::PP pp = SumZero::Setup(4);
+    TwistedExponentialElGamal::PP pp_enc = TwistedExponentialElGamal::Setup(32, 7);
+    SumZero::PP pp = SumZero::Setup(pp_enc.g, 4);
     SumZero::Instance instance;
     SumZero::Witness witness;
     GenRandomSumzeroProductInstanceWitness(pp, instance, witness);

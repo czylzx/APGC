@@ -34,9 +34,10 @@ void test_apgc_wellform()
 {
     // std::cout << "begin the test of NIZKPoK for plaintext knowledge >>>" << std::endl;
 
-    // TwistedExponentialElGamal::PP pp_enc = TwistedExponentialElGamal::Setup(32, 7);
+    TwistedExponentialElGamal::PP pp_enc = TwistedExponentialElGamal::Setup(32, 7);
     size_t VECTOR_LEN = 2;
-    WellFormProduct::PP pp = WellFormProduct::Setup(VECTOR_LEN);
+    //WellFormProduct::PP pp = WellFormProduct::Setup(pp_enc.g, pp_enc.h, VECTOR_LEN);
+    WellFormProduct::PP pp = WellFormProduct::Setup(pp_enc.g, pp_enc.h, VECTOR_LEN);
     WellFormProduct::Instance instance;
     WellFormProduct::Witness witness;
 

@@ -3,6 +3,7 @@
 #include "../zkp/nizk/nizk_any_out_of_many.hpp"
 #include "../crypto/setup.hpp"
 #include "../commitment/pedersen.hpp"
+#include "../pke/twisted_exponential_elgamal.hpp"
 
 
 void test_any_out_of_many(size_t N_max, size_t N_sender)
@@ -10,16 +11,16 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
     PrintSplitLine('-');  
     std::cout << "begin the test of any_out_of_many.hpp >>>" << std::endl; 
 
+    TwistedExponentialElGamal::PP pp_enc = TwistedExponentialElGamal::Setup(32, 7); 
+
     AnyOutOfMany::PP pp;
    
     AnyOutOfMany::Instance instance;
     AnyOutOfMany::Witness witness;
     AnyOutOfMany::Proof proof;
     
-    Pedersen::PP pp_com;
-    pp_com = Pedersen::Setup(1);
 
-    pp=AnyOutOfMany::Setup(N_max, pp_com);
+    pp=AnyOutOfMany::Setup(N_max, pp_enc.g, pp_enc.h);
   
     std::vector<BigInt> vec_s(N_sender);
     std::vector<BigInt> vec_b(N_max);
@@ -59,13 +60,15 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
     {
         if(vec_b[i] == bn_1)
         {
-            instance.vec_com.push_back(Pedersen::Commit(pp_com, value, vec_s[j]));
+            //instance.vec_com.push_back(Pedersen::Commit(pp_com, value, vec_s[j]));
+            instance.vec_com.push_back(pp_enc.g * vec_s[j]);
             j++;
         }
         else
         {
             BigInt random_value = GenRandomBigIntLessThan(order);
-            instance.vec_com.push_back(Pedersen::Commit(pp_com, value, random_value));
+            //instance.vec_com.push_back(Pedersen::Commit(pp_com, value, random_value));
+            instance.vec_com.push_back(pp_enc.g * random_value);
         }
         
     }

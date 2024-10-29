@@ -13,6 +13,9 @@ this hpp implements the APGC functionality
 #include "../gadget/range_proof.hpp"
 #include "../utility/serialization.hpp"
 #include "../zkp/apgcproofs/apgc_wellform.hpp"
+#include "../zkp/nizk/nizk_multi_plaintext_equality.hpp"
+#include "../zkp/apgcproofs/apgc_sum_zero.hpp"
+#include "../zkp/nizk/nizk_any_out_of_many.hpp"
 
 #define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
@@ -245,6 +248,9 @@ struct ToManyCTx{
 
     // validity proof
     WellFormProduct::Proof plaintext_wellformed_proof;
+    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
+    SumZero::Proof plaintext_sumzero_proof;
+    AnyOutOfMany::Proof slack_participant_proof;
     //TwistedExponentialElGamal::CT refresh_sender_updated_balance_ct;  // fresh encryption of updated balance (randomness is known)
     //PlaintextKnowledge::Proof plaintext_knowledge_proof; // NIZKPoK for refresh ciphertext (X^*, Y^*)
     //DLOGEquality::Proof correct_refresh_proof;     // fresh updated balance is correct
@@ -432,7 +438,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     #ifdef DEMO
         std::cout << "2. generate NIZKPoK for tx" << std::endl;  
     #endif
-    WellFormProduct::PP plaintext_wellform_product_pp = WellFormProduct::Setup(n);
+    WellFormProduct::PP plaintext_wellform_product_pp = WellFormProduct::Setup(pp.enc_part.g, pp.enc_part.h, n);
     WellFormProduct::Instance plaintext_wellform_product_instance;
 
     plaintext_wellform_product_instance.vec_pk = newCTx.vec_pk;
@@ -475,9 +481,76 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     WellFormProduct::Prove(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
                         plaintext_wellform_product_witness, transcript_str, plaintext_wellform_product_proof);
 
+    SumZero::PP plaintext_sumzero_pp = SumZero::Setup(pp.enc_part.g, n);
+    SumZero::Instance plaintext_sumzero_instance;
+    plaintext_sumzero_instance.C = newCTx.vec_participant_transfer_ct[0].Y;
+    for(auto i = 1; i < n; i++){
+        plaintext_sumzero_instance.C += newCTx.vec_participant_transfer_ct[i].Y;
+    }
+  
+    SumZero::Witness plaintext_sumzero_witness;
+    plaintext_sumzero_witness.r = vec_r;
+    transcript_str = "";
+    SumZero::Proof plaintext_sumzero_proof;
+    SumZero::Prove(plaintext_sumzero_pp, plaintext_sumzero_instance, plaintext_sumzero_witness, transcript_str, plaintext_sumzero_proof);
+
+
     #ifdef DEMO
         PrintSplitLine('-'); 
     #endif
+
+    #ifdef DEMO
+        std::cout << "2. generate NIZKPoK for slack_participant" << std::endl;  
+    #endif
+    
+    AnyOutOfMany::PP slack_participant_pp = AnyOutOfMany::Setup(n, pp.enc_part.g, pp.enc_part.h);
+    AnyOutOfMany::Instance slack_participant_instance;
+    slack_participant_instance.vec_com.resize(n);
+    for(auto i = 0; i < n; i++)
+    {
+        slack_participant_instance.vec_com[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+    AnyOutOfMany::Witness slack_participant_witness;
+    //slack_participant_witness.vec_s.resize(pp.SLACK_PARTICIPANT_NUM);
+    slack_participant_witness.vec_b.resize(n);
+    for(auto i = 0; i < n; i++)
+    {
+        if(i != sender_index && std::find(vec_index.begin(), vec_index.end(), i) == vec_index.end())
+        {
+            slack_participant_witness.vec_b[i] = bn_1;
+            slack_participant_witness.vec_s.push_back(vec_r[i]);
+        }
+        else
+        {
+            slack_participant_witness.vec_b[i] = bn_0;
+        }  
+    }
+    transcript_str = "";
+    AnyOutOfMany::Proof slack_participant_proof;
+    AnyOutOfMany::Prove(slack_participant_pp, slack_participant_instance, slack_participant_witness, slack_participant_proof, transcript_str);
+    #ifdef DEMO
+        std::cout << "3. generate NIZKPoK for supervise" << std::endl;  
+    #endif
+
+    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
+
+    superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
+    superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
+    superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
+    for(auto i = 0; i < n; i++){
+        superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
+        superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    MutiliPlaintextEquality::Witness superivisor_plaintext_wellformed_witness;
+
+    superivisor_plaintext_wellformed_witness.vec_r = vec_r; // r is as same as the plaintext_wellform_product_witness
+    superivisor_plaintext_wellformed_witness.vec_v = vec_v_plaintext_wellform;// v is as same as the plaintext_wellform_product_witness
+    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
+    transcript_str = "";
+    MutiliPlaintextEquality::Prove(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
+                        superivisor_plaintext_wellformed_witness, transcript_str, superivisor_plaintext_wellformed_proof);
 
     auto end_time = std::chrono::steady_clock::now(); 
 

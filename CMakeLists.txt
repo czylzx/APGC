@@ -181,9 +181,9 @@ configure_file(${PROJECT_SOURCE_DIR}/config/config.h.in ${PROJECT_SOURCE_DIR}/co
 # ADD_EXECUTABLE(test_nizk_dlog_equality test/test_nizk_dlog_equality.cpp)
 # TARGET_LINK_LIBRARIES(test_nizk_dlog_equality ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-# # bulletproof
-# ADD_EXECUTABLE(test_innerproduct_proof test/test_innerproduct_proof.cpp)
-# TARGET_LINK_LIBRARIES(test_innerproduct_proof ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# bulletproof
+ADD_EXECUTABLE(test_innerproduct_proof test/test_innerproduct_proof.cpp)
+TARGET_LINK_LIBRARIES(test_innerproduct_proof ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 # apgcproof
 ADD_EXECUTABLE(test_apgc_eqmdl test/test_apgc_eqmdl.cpp)
@@ -214,6 +214,9 @@ TARGET_LINK_LIBRARIES(test_any_out_of_many ${OPENSSL_LIBRARIES} OpenMP::OpenMP_C
 
 ADD_EXECUTABLE(test_1oon test/test_1oon.cpp)
 TARGET_LINK_LIBRARIES(test_1oon ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
+ADD_EXECUTABLE(test_nizk_multi_plaintext_equality test/test_nizk_multi_plaintext_equality.cpp)
+TARGET_LINK_LIBRARIES(test_nizk_multi_plaintext_equality ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 # mcl
 # add_executable(test_mcl test/test_mcl.cpp)
