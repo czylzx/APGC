@@ -472,9 +472,9 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
 
     std::string transcript_str = "";
     WellFormProduct::Proof plaintext_wellform_product_proof;
-    newCTx.plaintext_wellformed_proof = WellFormProduct::Prove(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
-                                        plaintext_wellform_product_witness, transcript_str, plaintext_wellform_product_proof);
-    plaintext_wellform_product_instance.vec_pk = newCTx.vec_pk;
+    WellFormProduct::Prove(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
+                        plaintext_wellform_product_witness, transcript_str, plaintext_wellform_product_proof);
+
     #ifdef DEMO
         PrintSplitLine('-'); 
     #endif
