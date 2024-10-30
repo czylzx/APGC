@@ -68,8 +68,8 @@ PP Setup(size_t N)
     pp.vec_g_range2 = GenRandomECPointVector(32);
     pp.vec_h1 = GenRandomECPointVector(32);
     pp.vec_h2 = GenRandomECPointVector(32);
-    pp.h = generator; 
-    pp.g = Hash::StringToECPoint(pp.g.ToByteString()); 
+    pp.g = generator; 
+    pp.h = Hash::StringToECPoint(pp.g.ToByteString()); 
     pp.u = GenRandomECPoint();
 
     return pp; 
