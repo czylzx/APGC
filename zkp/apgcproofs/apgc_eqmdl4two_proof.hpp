@@ -1,19 +1,19 @@
 /***********************************************************************************
 this hpp implements the eqmdl product proof system
 ***********************************************************************************/
-#ifndef EqmdlProduct_HPP
-#define EqmdlProduct_HPP
+#ifndef EqmdlProduct2_HPP
+#define EqmdlProduct2_HPP
 
 #include "../../crypto/ec_point.hpp"
 #include "../../crypto/hash.hpp"
 
-namespace EqmdlProduct
+namespace EqmdlProduct2
 {
 
     using Serialization::operator<<;
     using Serialization::operator>>;
 
-    // define the structure of EqmdlProduct Proof
+    // define the structure of EqmdlProduct2 Proof
     struct PP
     {
         size_t VECTOR_LEN;     // denotes the size of witness (witness is upto l = 2^VECTOR_LEN)
@@ -21,7 +21,6 @@ namespace EqmdlProduct
 
         // size of the vector = VECTOR_LEN
         std::vector<ECPoint> vec_g;
-        std::vector<ECPoint> vec_h;
         std::vector<ECPoint> vec_p;
         // ECPoint u;
     };
@@ -31,7 +30,7 @@ namespace EqmdlProduct
     {
         ECPoint P;
         ECPoint G;
-        ECPoint H;
+        
     };
 
     struct Witness
@@ -48,22 +47,20 @@ namespace EqmdlProduct
         std::vector<ECPoint> vec_PR;
         std::vector<ECPoint> vec_GL;
         std::vector<ECPoint> vec_GR;
-        std::vector<ECPoint> vec_HL;
-        std::vector<ECPoint> vec_HR;
         std::vector<BigInt> a;
         // BigInt b;
     };
 
-    std::ofstream &operator<<(std::ofstream &fout, const EqmdlProduct::Proof &proof)
+    std::ofstream &operator<<(std::ofstream &fout, const EqmdlProduct2::Proof &proof)
     {
-        fout << proof.vec_PL << proof.vec_PR << proof.vec_GL << proof.vec_GR << proof.vec_HL << proof.vec_HR;
+        fout << proof.vec_PL << proof.vec_PR << proof.vec_GL << proof.vec_GR ;
         fout << proof.a;
         return fout;
     }
 
-    std::ifstream &operator>>(std::ifstream &fin, EqmdlProduct::Proof &proof)
+    std::ifstream &operator>>(std::ifstream &fin, EqmdlProduct2::Proof &proof)
     {
-        fin >> proof.vec_PL >> proof.vec_PR >> proof.vec_GL >> proof.vec_GR >> proof.vec_HL >> proof.vec_HR;
+        fin >> proof.vec_PL >> proof.vec_PR >> proof.vec_GL >> proof.vec_GR ;
         fin >> proof.a;
         return fin;
     }
@@ -88,15 +85,6 @@ namespace EqmdlProduct
         {
             str += proof.vec_PR[i].ToByteString();
         }
-
-        for (auto i = 0; i < proof.vec_HL.size(); i++)
-        {
-            str += proof.vec_HL[i].ToByteString();
-        }
-        for (auto i = 0; i < proof.vec_HR.size(); i++)
-        {
-            str += proof.vec_HR[i].ToByteString();
-        }
         for (auto i = 0; i < proof.a.size(); i++)
         {
             str += proof.a[i].ToByteString();
@@ -111,7 +99,6 @@ namespace EqmdlProduct
 
         // size of the vector = VECTOR_LEN
         PrintECPointVector(pp.vec_g, "g");
-        PrintECPointVector(pp.vec_h, "h");
         PrintECPointVector(pp.vec_p, "p");
 
         // pp.u.Print("u");
@@ -134,8 +121,6 @@ namespace EqmdlProduct
         PrintECPointVector(proof.vec_PR, "R");
         PrintECPointVector(proof.vec_GL, "L");
         PrintECPointVector(proof.vec_GR, "R");
-        PrintECPointVector(proof.vec_HL, "L");
-        PrintECPointVector(proof.vec_HR, "R");
         PrintBigIntVector(proof.a, "a");
         // proof.b.Print("proof.b");
     };
@@ -224,7 +209,6 @@ namespace EqmdlProduct
         if (INITIAL_FLAG == true)
         {
             pp.vec_g = GenRandomECPointVector(pp.VECTOR_LEN);
-            pp.vec_h = GenRandomECPointVector(pp.VECTOR_LEN);
             pp.vec_p = GenRandomECPointVector(pp.VECTOR_LEN);
             // pp.u = GenRandomGenerator();
         }
@@ -279,8 +263,6 @@ namespace EqmdlProduct
 
             AssignECPointVector(vec_gL, pp.vec_g, "left");
             AssignECPointVector(vec_gR, pp.vec_g, "right");
-            AssignECPointVector(vec_hL, pp.vec_h, "left");
-            AssignECPointVector(vec_hR, pp.vec_h, "right");
             AssignECPointVector(vec_pL, pp.vec_p, "left");
             AssignECPointVector(vec_pR, pp.vec_p, "right");
 
@@ -295,8 +277,6 @@ namespace EqmdlProduct
 
             proof.vec_GL.emplace_back(GL);
             proof.vec_GR.emplace_back(GR);
-            proof.vec_HL.emplace_back(HL);
-            proof.vec_HR.emplace_back(HR);
             proof.vec_PL.emplace_back(PL);
             proof.vec_PR.emplace_back(PR);
 
@@ -326,10 +306,6 @@ namespace EqmdlProduct
 
             pp_sub.vec_g = ECPointVectorAdd(vec_gL, vec_gR);
 
-            // compute vec_h'
-            vec_hL = ECPointVectorScalar(vec_hL, x);
-            pp_sub.vec_h = ECPointVectorAdd(vec_hL, vec_hR);
-
             // compute vec_p'
             vec_pL = ECPointVectorScalar(vec_pL, x);
             pp_sub.vec_p = ECPointVectorAdd(vec_pL, vec_pR);
@@ -348,13 +324,11 @@ namespace EqmdlProduct
             vec_a.clear();
 
             vec_G_A = {GL, instance.G, GR};
-            vec_H_A = {HL, instance.H, HR};
             vec_P_A = {PL, instance.P, PR};
             vec_a = {x.ModSquare(order), x, bn_1};
 
             // instance_sub.G = GL * x_square+G*x+GR
             instance_sub.G = ECPointVectorMul(vec_G_A, vec_a);
-            instance_sub.H = ECPointVectorMul(vec_H_A, vec_a);
             instance_sub.P = ECPointVectorMul(vec_P_A, vec_a);
 
             // generate new witness a'=aL+x*aR
@@ -396,13 +370,10 @@ namespace EqmdlProduct
         // prepare aL, aR, bL, bR
         AssignECPointVector(vec_gL, pp.vec_g, "left");
         AssignECPointVector(vec_gR, pp.vec_g, "right");
-        AssignECPointVector(vec_hL, pp.vec_h, "left");
-        AssignECPointVector(vec_hR, pp.vec_h, "right");
         AssignECPointVector(vec_pL, pp.vec_p, "left");
         AssignECPointVector(vec_pR, pp.vec_p, "right");
 
         ECPoint G = instance.G;
-        ECPoint H = instance.H;
         ECPoint P = instance.P;
 
         PP pp_sub;
@@ -411,7 +382,7 @@ namespace EqmdlProduct
         {
 
             // compute the challenge x
-            transcript_str += proof.vec_GL[i].ToByteString() + proof.vec_GR[i].ToByteString() + proof.vec_HL[i].ToByteString() + proof.vec_HR[i].ToByteString() + proof.vec_PL[i].ToByteString() + proof.vec_PR[i].ToByteString();
+            transcript_str += proof.vec_GL[i].ToByteString() + proof.vec_GR[i].ToByteString()  + proof.vec_PL[i].ToByteString() + proof.vec_PR[i].ToByteString();
             BigInt x = Hash::StringToBigInt(transcript_str);
 
             // x.Print("V:x");
@@ -432,7 +403,6 @@ namespace EqmdlProduct
 
             // compute vec_h'
             vec_hL = ECPointVectorScalar(vec_hL, x);
-            pp_sub.vec_h = ECPointVectorAdd(vec_hL, vec_hR);
 
             // compute vec_p'
             vec_pL = ECPointVectorScalar(vec_pL, x);
@@ -441,8 +411,6 @@ namespace EqmdlProduct
             // prepare aL, aR, bL, bR
             AssignECPointVector(vec_gL, pp_sub.vec_g, "left");
             AssignECPointVector(vec_gR, pp_sub.vec_g, "right");
-            AssignECPointVector(vec_hL, pp_sub.vec_h, "left");
-            AssignECPointVector(vec_hR, pp_sub.vec_h, "right");
             AssignECPointVector(vec_pL, pp_sub.vec_p, "left");
             AssignECPointVector(vec_pR, pp_sub.vec_p, "right");
             // std::cout << "2222 " ;
@@ -450,23 +418,20 @@ namespace EqmdlProduct
             Instance instance_sub;
 
             vec_G_A = {proof.vec_GL[i], G, proof.vec_GR[i]};
-            vec_H_A = {proof.vec_HL[i], H, proof.vec_HR[i]};
             vec_P_A = {proof.vec_PL[i], P, proof.vec_PR[i]};
             std::vector<BigInt> vec_a(3);
             vec_a = {x.ModSquare(order), x, bn_1};
 
             // instance_sub.G = GL * x_square+G*x+GR
             G = ECPointVectorMul(vec_G_A, vec_a);
-            H = ECPointVectorMul(vec_H_A, vec_a);
             P = ECPointVectorMul(vec_P_A, vec_a);
         }
 
         // std::vector<BigInt> a = {proof.a[0]};
         ECPoint ga = ECPointVectorMul({pp_sub.vec_g[0]}, proof.a);
-        ECPoint ha = ECPointVectorMul({pp_sub.vec_h[0]}, proof.a);
         ECPoint pa = ECPointVectorMul({pp_sub.vec_p[0]}, proof.a);
 
-        if (G == ga && H == ha && P == pa)
+        if (G == ga && P == pa)
         {
             Validity = true;
 #ifdef DEBUG

@@ -16,6 +16,7 @@ this hpp implements the APGC functionality
 #include "../zkp/nizk/nizk_multi_plaintext_equality.hpp"
 #include "../zkp/apgcproofs/apgc_sum_zero.hpp"
 #include "../zkp/nizk/nizk_any_out_of_many.hpp"
+#include "../zkp/apgcproofs/apgc_sdr_solvent_equal.hpp"
 
 #define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
@@ -246,17 +247,21 @@ struct ToManyCTx{
     std::vector<TwistedExponentialElGamal::MRCT> vec_participant_transfer_ct;    // (X0 = pka^r, X1 = pkr^r, Y = g^r h^v)
     std::vector<TwistedExponentialElGamal::CT> vec_participant_balance_ct;  
 
+    ECPoint vector_commitment_B_l0;
+    TwistedExponentialElGamal::CT refresh_updated_ct;
     // validity proof
     WellFormProduct::Proof plaintext_wellformed_proof;
     MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
     SumZero::Proof plaintext_sumzero_proof;
     AnyOutOfMany::Proof slack_participant_proof;
+    Solvent_Equal::Proof solvent_equal_proof;
+    Bullet::Proof bullet_right_solvent_proof;
     //TwistedExponentialElGamal::CT refresh_sender_updated_balance_ct;  // fresh encryption of updated balance (randomness is known)
     //PlaintextKnowledge::Proof plaintext_knowledge_proof; // NIZKPoK for refresh ciphertext (X^*, Y^*)
     //DLOGEquality::Proof correct_refresh_proof;     // fresh updated balance is correct
 
     std::vector<PlaintextEquality::Proof> vec_plaintext_equality_proof;     // NIZKPoK for transfer ciphertext (X1, X2, Y)
-    Bullet::Proof bullet_right_solvent_proof;   // aggregated range proof for v, m-v and v_i lie in the right range 
+    //Bullet::Proof bullet_right_solvent_proof;   // aggregated range proof for v, m-v and v_i lie in the right range 
 
     DLOGKnowledge::Proof balance_proof; // prove v = v_1 +...+ v_n    
 };
@@ -334,6 +339,12 @@ std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
 /* 
 * generate a confidential transaction: pks transfers vi coins to pkr[i] 
 */
+
+size_t GetTheNthBit(size_t index, size_t n)
+{
+    return (index>>n)&1;
+}
+
 ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, std::vector<ECPoint> &vec_pkr, std::vector<AnonSet> &vec_AnonSet, size_t sender_index, std::vector<size_t> vec_index)
 { 
     ToManyCTx newCTx; 
@@ -528,8 +539,74 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     transcript_str = "";
     AnyOutOfMany::Proof slack_participant_proof;
     AnyOutOfMany::Prove(slack_participant_pp, slack_participant_instance, slack_participant_witness, slack_participant_proof, transcript_str);
+    
     #ifdef DEMO
-        std::cout << "3. generate NIZKPoK for supervise" << std::endl;  
+        std::cout << "3. generate NIZKPoK for solvent" << std::endl;  
+    #endif
+
+    size_t m = log(n);
+    std::vector<ECPoint> base_g = GenRandomECPointVector(m);
+    ECPoint base_h = pp.enc_part.h;
+
+    std::vector<BigInt> vec_l0;
+    for(auto i = m-1; i >= 0; i--){
+        if(GetTheNthBit(sender_index, i) == 1){
+            vec_l0.push_back(bn_1);
+        }
+        else{
+            vec_l0.push_back(bn_0);
+        }
+    }
+    BigInt rb_l0 = GenRandomBigIntLessThan(order);
+    ECPoint B_l0 = ECPointVectorMul(base_g, vec_l0) + base_h * rb_l0;
+    newCTx.vector_commitment_B_l0 = B_l0;
+    BigInt balance_sender = TwistedExponentialElGamal::Dec(pp.enc_part, Acct_sender.sk, Acct_sender.balance_ct);
+    balance_sender = balance_sender - v;
+
+    BigInt r_refresh = GenRandomBigIntLessThan(order);
+    newCTx.refresh_updated_ct.X = Acct_sender.pk * r_refresh;
+    newCTx.refresh_updated_ct.Y = pp.enc_part.g * r_refresh + pp.enc_part.h * balance_sender;
+
+    Bullet::Instance bullet_instance_solvent;
+    bullet_instance_solvent.C = {newCTx.refresh_updated_ct.Y};
+
+    Bullet::Witness bullet_witness_solvent;  
+    bullet_witness_solvent.r = {r_refresh}; 
+    bullet_witness_solvent.v = {balance_sender};
+
+    Bullet::Prove(pp.bullet_part, bullet_instance_solvent, bullet_witness_solvent, transcript_str, newCTx.bullet_right_solvent_proof); 
+
+    std::vector<ECPoint> sum_ct_left(n);
+    std::vector<ECPoint> sum_ct_right(n);
+    for(auto i = 0; i < n; i++){
+        sum_ct_left[i] = newCTx.vec_participant_transfer_ct[i].vec_X[0] + newCTx.vec_participant_balance_ct[i].X;
+        sum_ct_right[i] = newCTx.vec_participant_transfer_ct[i].Y + newCTx.vec_participant_balance_ct[i].Y;
+    }
+
+    Solvent_Equal::PP solvent_equal_pp = Solvent_Equal::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    Solvent_Equal::Instance solvent_equal_instance;
+    solvent_equal_instance.B = newCTx.vector_commitment_B_l0;
+    solvent_equal_instance.Sum_CL = sum_ct_left;
+    solvent_equal_instance.Sum_CR = sum_ct_right;
+    solvent_equal_instance.Refresh_CL = newCTx.refresh_updated_ct.X;
+    solvent_equal_instance.Refresh_CR = newCTx.refresh_updated_ct.Y;
+    solvent_equal_instance.pk = newCTx.vec_pk;
+
+    Solvent_Equal::Witness solvent_equal_witness;
+    solvent_equal_witness.sk = Acct_sender.sk;
+    solvent_equal_witness.l0 = sender_index;
+    solvent_equal_witness.rb_l0 = rb_l0;
+    solvent_equal_witness.r_refresh = r_refresh;
+    solvent_equal_witness.balance_sender = balance_sender;
+
+    Solvent_Equal::Proof solvent_equal_proof;
+
+    transcript_str = "";
+
+    Solvent_Equal::Prove(solvent_equal_pp, solvent_equal_instance, solvent_equal_witness, transcript_str, solvent_equal_proof);
+
+    #ifdef DEMO
+        std::cout << "4. generate NIZKPoK for supervise" << std::endl;  
     #endif
 
     MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);

@@ -98,11 +98,11 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.B += pp.u * rB;
     
     //proof lin bit
-    LinBit::PP linbit_pp = LinBit::Setup(m);
-    linbit_pp.h = pp.u;
+    LinBit::PP linbit_pp = LinBit::Setup(pp.vec_g, pp.u, m);
+    /*linbit_pp.h = pp.u;
     for(auto i=0;i<m;i++){
         linbit_pp.vec_g[i] = pp.vec_g[i];
-    }
+    }*/
     
     LinBit::Instance linbit_instance; 
     linbit_instance.P = proof.B;
@@ -210,11 +210,11 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     std::vector<bool> vec_condition(2, false);
 
     // check condition 1
-    LinBit::PP linbit_pp = LinBit::Setup(m);
-    linbit_pp.h = pp.u;
+    LinBit::PP linbit_pp = LinBit::Setup(pp.vec_g, pp.u, m);
+    /*linbit_pp.h = pp.u;
     for(auto i=0;i<m;i++){
         linbit_pp.vec_g[i] = pp.vec_g[i];
-    }
+    }*/
     
     LinBit::Instance linbit_instance; 
     linbit_instance.P = proof.B;
