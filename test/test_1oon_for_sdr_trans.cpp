@@ -1,7 +1,7 @@
 #define DEBUG
 
 #include "../zkp/nizk/nizk_sdr_trans.hpp"
-#include "../zkp/nizk/nizk_1oon_for_sdr_trans.hpp"
+#include "../zkp/nizk/nizk_1oon_for_sdr_trans_test.hpp"
 #include "../crypto/setup.hpp"
 
 std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
