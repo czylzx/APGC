@@ -68,8 +68,8 @@ PP Setup(size_t N)
     pp.vec_g_range2 = GenRandomECPointVector(32);
     pp.vec_h1 = GenRandomECPointVector(32);
     pp.vec_h2 = GenRandomECPointVector(32);
-    pp.g = generator; 
-    pp.h = Hash::StringToECPoint(pp.g.ToByteString()); 
+    pp.h = generator; 
+    pp.g = Hash::StringToECPoint(pp.h.ToByteString()); 
     pp.u = GenRandomECPoint();
 
     return pp; 
@@ -120,6 +120,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     witness_1oon.r = witness.rL;
     witness_1oon.l = witness.l;
     witness_1oon.rB = witness.rR;
+    witness_1oon.v = witness.v;
     
     _1oon::Proof LB_proof = _1oon::Prove(pp_1oon, instance_1oon, witness_1oon, transcript_1oon);
     
@@ -187,10 +188,10 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     // set witness
     First_Bullet_witness.r = GenRandomBigIntVectorLessThan(max_agg_num,order);
     First_Bullet_witness.v = GenRandomBigIntVectorLessThan(max_agg_num,order);
-    First_Bullet_witness.r[0] = tau;
-    First_Bullet_witness.v[0] = witness.v;
-    // First_Bullet_witness.r[0] = witness.v;
-    // First_Bullet_witness.v[0] = tau;
+    // First_Bullet_witness.r[0] = tau;
+    // First_Bullet_witness.v[0] = witness.v.ModNegate(order);
+    First_Bullet_witness.r[0] = witness.v.ModNegate(order);
+    First_Bullet_witness.v[0] = tau;
 
     // set transcript_str
     First_Bullet_str = "";
@@ -220,7 +221,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     Second_Bullet_witness.r = GenRandomBigIntVectorLessThan(max_agg_num,order);
     Second_Bullet_witness.v = GenRandomBigIntVectorLessThan(max_agg_num,order);
     Second_Bullet_witness.r[0] = tau;
-    Second_Bullet_witness.v[0] = witness.v - bn_1;
+    Second_Bullet_witness.v[0] = witness.v.ModNegate(order) - bn_1;
 
     // set transcript_str
     Second_Bullet_str = "";
@@ -285,8 +286,8 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.a2 = Second_Bullet_proof.ip_proof.a;
     proof.b2 = Second_Bullet_proof.ip_proof.b;
 
-    std::vector<ECPoint> aaa = {pp.g * zG,pp.g * zG + pp.h * witness.v};
-    PrintECPointVector(aaa,"");
+    // std::vector<ECPoint> aaa = {pp.g * zG,pp.g * zG + pp.h * witness.v};
+    // PrintECPointVector(aaa,"");
     return proof;
 
 }
@@ -352,6 +353,8 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     }
 
     ECPoint G = left + right;
+    std::vector<ECPoint> aaa = {G,G};
+    PrintECPointVector(aaa,"");
     
     // check
     std::vector<bool> vec_condition(3, false);
@@ -377,7 +380,9 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     proof_1oon.vec_f = proof.vec_f;
     proof_1oon.zA = proof.zA;
     proof_1oon.zC = proof.zC;
-    proof_1oon.zd = GenRandomBigIntLessThan(order);
+    // proof_1oon.zd = GenRandomBigIntLessThan(order);
+    proof_1oon.G = G;
+    proof_1oon.zd = proof.zG;
     vec_condition[0] = _1oon::Verify(pp_1oon,instance_1oon,transcript_str,proof_1oon);
 
 
@@ -398,10 +403,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     First_Bullet_pp.vec_h = pp.vec_h1;
     // set instance
     First_Bullet_instance.C = GenRandomECPointVector(1);
-    First_Bullet_instance.C[0] = G * (bn_0 - x0m_inv + order); 
+    First_Bullet_instance.C[0] = G * x0m_inv.ModNegate(order); 
 
-    std::vector<ECPoint> aaa = {G,G};
-    PrintECPointVector(aaa,"");
+    // std::vector<ECPoint> aaa = {G,G};
+    // PrintECPointVector(aaa,"");
 
     // set transcript_str
     First_Bullet_str = "";
@@ -434,7 +439,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     Second_Bullet_pp.vec_h = pp.vec_h2;
     // set instance
     Second_Bullet_instance.C = GenRandomECPointVector(1);
-    Second_Bullet_instance.C[0] = G * (bn_0 - x0m_inv + order) + pp.h.Invert(); 
+    Second_Bullet_instance.C[0] = G * x0m_inv.ModNegate(order) + pp.h.Invert(); 
 
 
     // std::vector<BigInt> aaa = {x0}
