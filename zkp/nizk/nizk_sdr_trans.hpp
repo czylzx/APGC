@@ -52,7 +52,7 @@ struct Proof
     ECPoint V1,V2,S1,S2;
     ECPoint T11,T12,T21,T22;
     std::vector<BigInt> vec_f;
-    BigInt zA,zC;
+    BigInt zA,zC,zG;
     BigInt mu1,mu2,t1,t2,tau1,tau2;
     std::vector<ECPoint> vec_L1, vec_L2, vec_R1, vec_R2;
     BigInt a1,a2,b1,b2; 
@@ -141,6 +141,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.zA = LB_proof.zA;
     proof.zC = LB_proof.zC;
     BigInt zG = LB_proof.zd;
+    proof.zG = zG;
     
 
 
@@ -148,9 +149,9 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     _1oon_str += proof.A.ToByteString();
     _1oon_str += proof.C.ToByteString();
     _1oon_str += proof.D.ToByteString();
-    for(auto i=0;i<m;i++){
-        _1oon_str += proof.vec_C[i].ToByteString();
-    }
+    // for(auto i=0;i<m;i++){
+    //     _1oon_str += proof.vec_C[i].ToByteString();
+    // }
 
     // computer the challenge x_0
     BigInt x0 = Hash::StringToBigInt(_1oon_str);
@@ -158,11 +159,11 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     // compute x_0 ^ m
     BigInt x0m = bn_1;
     for(auto i=0;i<m;i++){
-        x0m = x0m * x0;
+        x0m = x0m * x0 % order;
     }
     
     // compute tau
-    BigInt tau = zG / x0m % order;
+    BigInt tau = zG * x0m.ModInverse(order) % order;
     
     // range proof
     size_t range_len = 32;
@@ -175,8 +176,8 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     std::string First_Bullet_str;
     Bullet::Proof First_Bullet_proof;
     // set pp
-    First_Bullet_pp.g = pp.h;
-    First_Bullet_pp.h = pp.g;
+    First_Bullet_pp.g = pp.g;
+    First_Bullet_pp.h = pp.h;
     First_Bullet_pp.u = pp.u;
     First_Bullet_pp.vec_g = pp.vec_g_range1;
     First_Bullet_pp.vec_h = pp.vec_h1;
@@ -208,8 +209,8 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
     // set Bullet proof v-1
     // set pp
-    Second_Bullet_pp.g = pp.h;
-    Second_Bullet_pp.h = pp.g;
+    Second_Bullet_pp.g = pp.g;
+    Second_Bullet_pp.h = pp.h;
     Second_Bullet_pp.u = pp.u;
     Second_Bullet_pp.vec_g = pp.vec_g_range2;
     Second_Bullet_pp.vec_h = pp.vec_h2;
@@ -247,7 +248,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     first_str += proof.V1.ToByteString();
     BigInt y1 = Hash::StringToBigInt(first_str);
 
-    first_str += proof.S2.ToByteString();
+    first_str += proof.S1.ToByteString();
     BigInt z1 = Hash::StringToBigInt(first_str);
 
     // compute y2,z2
@@ -284,6 +285,8 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.a2 = Second_Bullet_proof.ip_proof.a;
     proof.b2 = Second_Bullet_proof.ip_proof.b;
 
+    std::vector<ECPoint> aaa = {pp.g * zG,pp.g * zG + pp.h * witness.v};
+    PrintECPointVector(aaa,"");
     return proof;
 
 }
@@ -292,7 +295,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 // check NIZK proof PI for Ci = Enc(pki, m; r) the witness is (r1, r2, m)
 bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof)
 {
-
+   
     size_t m = pp.vec_g_1oon.size();
     size_t N = 2;
     for(auto i=1;i<m;i++){
@@ -303,9 +306,9 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     str += proof.A.ToByteString();
     str += proof.C.ToByteString();
     str += proof.D.ToByteString();
-    for(auto i=0;i<m;i++){
-        str += proof.vec_C[i].ToByteString();
-    }
+    // for(auto i=0;i<m;i++){
+    //     str += proof.vec_C[i].ToByteString();
+    // }
 
     // computer the challenge x_0
     BigInt x0 = Hash::StringToBigInt(str);
@@ -317,7 +320,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
         exp_x[k] = exp_x[k-1] * x0 % order; 
     }
 
-    BigInt x0m_inv = x0m_inv.ModInverse(order);  
+    BigInt x0m_inv = exp_x[m].ModInverse(order);  
 
     //right part
     ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order);
@@ -361,15 +364,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     pp_1oon.g = pp.g;
     pp_1oon.u = pp.u;
     pp_1oon.h = pp.h;
-    for(auto i=0;i<m;i++){
-        pp_1oon.vec_g[i] = pp.vec_g_1oon[i];
-    }
+    pp_1oon.vec_g = pp.vec_g_1oon;
     // instance
     instance_1oon.B = instance.B;
-    instance_1oon.vec_c = GenRandomECPointVector(N);
-    for(auto i=0;i<N;i++){
-        instance_1oon.vec_c[i] = instance.vec_C[i];
-    }
+    instance_1oon.vec_c = instance.vec_C;
     // proof
     proof_1oon.A = proof.A;
     proof_1oon.B = instance.B;
@@ -393,14 +391,17 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     Bullet::Proof First_Bullet_proof;
 
     // set pp
-    First_Bullet_pp.g = pp.h;
-    First_Bullet_pp.h = pp.g;
+    First_Bullet_pp.g = pp.g;
+    First_Bullet_pp.h = pp.h;
     First_Bullet_pp.u = pp.u;
     First_Bullet_pp.vec_g = pp.vec_g_range1;
     First_Bullet_pp.vec_h = pp.vec_h1;
     // set instance
     First_Bullet_instance.C = GenRandomECPointVector(1);
     First_Bullet_instance.C[0] = G * (bn_0 - x0m_inv + order); 
+
+    std::vector<ECPoint> aaa = {G,G};
+    PrintECPointVector(aaa,"");
 
     // set transcript_str
     First_Bullet_str = "";
@@ -426,14 +427,17 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     Bullet::Proof Second_Bullet_proof;
 
     // set pp
-    Second_Bullet_pp.g = pp.h;
-    Second_Bullet_pp.h = pp.g;
+    Second_Bullet_pp.g = pp.g;
+    Second_Bullet_pp.h = pp.h;
     Second_Bullet_pp.u = pp.u;
     Second_Bullet_pp.vec_g = pp.vec_g_range2;
     Second_Bullet_pp.vec_h = pp.vec_h2;
     // set instance
     Second_Bullet_instance.C = GenRandomECPointVector(1);
-    Second_Bullet_instance.C[0] = G * (bn_0 - x0m_inv + order) - pp.h; 
+    Second_Bullet_instance.C[0] = G * (bn_0 - x0m_inv + order) + pp.h.Invert(); 
+
+
+    // std::vector<BigInt> aaa = {x0}
     // set transcript_str
     Second_Bullet_str = "";
     // set proof
