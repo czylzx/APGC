@@ -392,12 +392,7 @@ namespace Solvent_Equal
                 else{
                     vec_p_eval[j] = vec_p_eval[j] * ((x - linbit_proof.vec_f[b] + order) % order) % order;
                 }
-                // if(vec_index[b] == 1){
-                //     vec_p_eval[j] = vec_P[j] * proof.vec_p_eval[b] % order;
-                // }
-                // else{
-                //     vec_p_eval[j] = vec_p_eval[j] * ((x - proof.vec_p_eval[b] + order) % order) % order;
-                // }    
+                  
             } 
         }
 
