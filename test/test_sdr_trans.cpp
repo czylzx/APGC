@@ -33,7 +33,7 @@ void GenRandomInstanceWitness(SdrTrans::PP &pp, SdrTrans::Instance &instance,
 
     srand(time(0));
     witness.l = rand() % N;
-    witness.v = GenRandomBigIntLessThan(order);
+    witness.v = -BigInt(32);
     witness.rL = GenRandomBigIntLessThan(order);
     witness.rR = GenRandomBigIntLessThan(order);
 
