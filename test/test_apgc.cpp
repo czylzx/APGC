@@ -119,6 +119,15 @@ void Build_APGC_Test_Enviroment(APGC::PP &pp, size_t number)
     std::string Paul_Acct_FileName = "Paul.account";
     APGC::SaveAccount(Acct_Paul, Paul_Acct_FileName);
 
+    for(size_t i = 16; i < number; i++)
+    {
+        BigInt balance = BigInt(getrandom(32));
+        std::string identity = "Anon" + std::to_string(i);
+        APGC::Account Acct_Anon = APGC::CreateAccount(pp, identity, balance); 
+        std::string Anon_Acct_FileName = identity + ".account"; 
+        APGC::SaveAccount(Acct_Anon, Anon_Acct_FileName); 
+    }
+
     // BigInt Tax_balance = bn_0; 
     // APGC::Account Acct_Tax = APGC::CreateAccount(pp, "Tax", Tax_balance); 
     // std::string Tax_Acct_FileName = "Tax.account"; 
@@ -206,10 +215,26 @@ void Emulate_APGC_System(size_t number, size_t kreceiver)
     APGC::FetchAccount(Acct_Paul, "Paul.account");
     APGC::PrintAccount(Acct_Paul);
 
+    // for(size_t i = 16; i < number; i++)
+    // {
+    //     std::string identity = "Anon" + std::to_string(i);
+    //     APGC::Account Acct_Anon;
+    //     APGC::FetchAccount(Acct_Anon, identity + ".account");
+    //     APGC::PrintAccount(Acct_Anon);
+    // }
+
     std::vector<APGC::Account> vec_Acct= {Acct_Alice, Acct_Bob, Acct_Carl, Acct_David, 
                                                     Acct_Eve, Acct_Frank, Acct_Grace, Acct_Henry, 
                                                     Acct_Ida, Acct_Jack, Acct_Kate, Acct_Leo, Acct_Mary, 
                                                     Acct_Nick, Acct_Olivia, Acct_Paul};
+
+    for(size_t i = 16; i < number; i++)
+    {
+        std::string identity = "Anon" + std::to_string(i);
+        APGC::Account Acct_Anon;
+        APGC::FetchAccount(Acct_Anon, identity + ".account");
+        vec_Acct.push_back(Acct_Anon);
+    }
 
     std::cout << "Alice is going to transfer >>>>>>>>" << std::endl;
     
@@ -291,7 +316,7 @@ void Emulate_APGC_System(size_t number, size_t kreceiver)
 int main()
 {
     CRYPTO_Initialize();   
-    size_t number = 8;
+    size_t number = 64;
     size_t kreceiver = 1;
 
     Emulate_APGC_System(number, kreceiver);

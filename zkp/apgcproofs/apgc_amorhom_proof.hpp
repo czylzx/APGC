@@ -371,14 +371,14 @@ namespace AmorHom
         eqmdl_proof = proof.eqmdl_proof;
         bool Validity = EqmdlProduct2::Verify(eqmdl_pp, eqmdl_instance, transcript_str, eqmdl_proof);
 
-        if(Validity == false)
-        {
-           std::cout << "amorhom_proof is invalid" << std::endl;
-        }
-        else
-        {
-            std::cout << "amorhom_proof is valid" << std::endl;
-        }
+        // if(Validity == false)
+        // {
+        //    std::cout << "amorhom_proof is invalid" << std::endl;
+        // }
+        // else
+        // {
+        //     std::cout << "amorhom_proof is valid" << std::endl;
+        // }
         return Validity;
 
     } 
