@@ -19,7 +19,7 @@ this hpp implements the APGC functionality
 #include "../zkp/apgcproofs/apgc_sdr_solvent_equal.hpp"
 #include "../zkp/nizk/nizk_sdr_trans.hpp"
 
-#define DEMO           // demo mode 
+//#define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
 
 
@@ -61,7 +61,7 @@ struct Account{
     BigInt sk;              // secret key
     TwistedExponentialElGamal::CT balance_ct;  // current balance
     BigInt m;               // dangerous (should only be used for speeding up the proof generation)
-    //BigInt sn; 
+
 };
 
 struct SuperviseResult{
@@ -246,10 +246,7 @@ BigInt RevealBalance(PP &pp, Account &Acct)
 struct ToManyCTx{
     BigInt sn;                        // serial number: uniquely defines a transaction
     size_t k;                         // number of receivers
-    // memo information
-    //TwistedExponentialElGamal::CT sender_balance_ct;        // the current balance of pk1 (not necessarily included)
-    //ECPoint pks;      // sender = pks
-    //TwistedExponentialElGamal::CT sender_transfer_ct;
+
     std::vector<ECPoint> vec_pk;  
     std::vector<TwistedExponentialElGamal::MRCT> vec_participant_transfer_ct;    // (X0 = pka^r, X1 = pkr^r, Y = g^r h^v)
     std::vector<TwistedExponentialElGamal::CT> vec_participant_balance_ct;  
@@ -268,14 +265,8 @@ struct ToManyCTx{
     SdrTrans::Proof sdr_trans_proof_sender;
     SdrTrans::Proof sdr_trans_proof_receiver;
 
-    //TwistedExponentialElGamal::CT refresh_sender_updated_balance_ct;  // fresh encryption of updated balance (randomness is known)
-    //PlaintextKnowledge::Proof plaintext_knowledge_proof; // NIZKPoK for refresh ciphertext (X^*, Y^*)
-    //DLOGEquality::Proof correct_refresh_proof;     // fresh updated balance is correct
+    std::vector<PlaintextEquality::Proof> vec_plaintext_equality_proof;    
 
-    std::vector<PlaintextEquality::Proof> vec_plaintext_equality_proof;     // NIZKPoK for transfer ciphertext (X1, X2, Y)
-    //Bullet::Proof bullet_right_solvent_proof;   // aggregated range proof for v, m-v and v_i lie in the right range 
-
-    DLOGKnowledge::Proof balance_proof; // prove v = v_1 +...+ v_n    
 };
 
 struct AnonSet{
@@ -303,14 +294,6 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
         fout << newCTx.vec_participant_transfer_ct[i];
     } 
     
-    // save proofs
-    // for(auto i = 0; i < newCTx.vec_plaintext_equality_proof.size(); i++){
-    //     fout << newCTx.vec_plaintext_equality_proof[i];
-    // }
-    // fout << newCTx.refresh_sender_updated_balance_ct; 
-    // fout << newCTx.correct_refresh_proof; 
-    // fout << newCTx.bullet_right_solvent_proof; 
-    // fout << newCTx.plaintext_knowledge_proof; 
 
     fout.close();
 
@@ -321,32 +304,32 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
     fin.close(); 
 }
 
-std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
-{
-    // std::string str;
-    // str += newCTx.sn.ToHexString() + newCTx.pks.ToByteString(); 
-    // for(auto i = 0; i < newCTx.vec_pkr.size(); i++){
-    //     str += newCTx.vec_pkr[i].ToByteString();
-    // }
+// std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
+// {
+//     // std::string str;
+//     // str += newCTx.sn.ToHexString() + newCTx.pks.ToByteString(); 
+//     // for(auto i = 0; i < newCTx.vec_pkr.size(); i++){
+//     //     str += newCTx.vec_pkr[i].ToByteString();
+//     // }
 
-    // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_balance_ct);  
-    // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_transfer_ct);  
-    // for(auto i = 0; i < newCTx.vec_receiver_transfer_ct.size(); i++){
-    //     str += TwistedExponentialElGamal::MRCTToByteString(newCTx.vec_receiver_transfer_ct[i]);
-    // }
+//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_balance_ct);  
+//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_transfer_ct);  
+//     // for(auto i = 0; i < newCTx.vec_receiver_transfer_ct.size(); i++){
+//     //     str += TwistedExponentialElGamal::MRCTToByteString(newCTx.vec_receiver_transfer_ct[i]);
+//     // }
 
-    // for(auto i = 0; i < newCTx.vec_plaintext_equality_proof.size(); i++){
-    //     str += PlaintextEquality::ProofToByteString(newCTx.vec_plaintext_equality_proof[i]);  
-    // }
+//     // for(auto i = 0; i < newCTx.vec_plaintext_equality_proof.size(); i++){
+//     //     str += PlaintextEquality::ProofToByteString(newCTx.vec_plaintext_equality_proof[i]);  
+//     // }
    
-    // str += Bullet::ProofToByteString(newCTx.bullet_right_solvent_proof);   
-    // str += TwistedExponentialElGamal::CTToByteString(newCTx.refresh_sender_updated_balance_ct);  
-    // str += PlaintextKnowledge::ProofToByteString(newCTx.plaintext_knowledge_proof); 
+//     // str += Bullet::ProofToByteString(newCTx.bullet_right_solvent_proof);   
+//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.refresh_sender_updated_balance_ct);  
+//     // str += PlaintextKnowledge::ProofToByteString(newCTx.plaintext_knowledge_proof); 
 
-    // str += DLOGKnowledge::ProofToByteString(newCTx.balance_proof); 
+//     // str += DLOGKnowledge::ProofToByteString(newCTx.balance_proof); 
 
-    // return str;
-}
+//     // return str;
+// }
 
 /* 
 * generate a confidential transaction: pks transfers vi coins to pkr[i] 
@@ -393,7 +376,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         std::cout <<"1. generate memo info of ctx" << std::endl;  
     #endif
 
-    auto start_time = std::chrono::steady_clock::now();
+    
 
     std::string transcript_str = "";  
     //newCTx.sn = Acct_sender.sn;
@@ -470,6 +453,9 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     #ifdef DEMO
         std::cout << "2. generate NIZKPoK for tx" << std::endl;  
     #endif
+
+    auto start_time = std::chrono::steady_clock::now();
+
     WellFormProduct::PP plaintext_wellform_product_pp = WellFormProduct::Setup(pp.enc_part.g, pp.enc_part.h, n);
     pp.wellform_part = plaintext_wellform_product_pp;
     WellFormProduct::Instance plaintext_wellform_product_instance;
@@ -603,10 +589,11 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     bullet_witness_solvent.r = {r_refresh}; 
     bullet_witness_solvent.v = {balance_sender};
 
-    Bullet::Prove(pp.bullet_part, bullet_instance_solvent, bullet_witness_solvent, transcript_str, newCTx.bullet_right_solvent_proof);
+    Bullet::Proof bullet_right_solvent_proof;
+    transcript_str = "";
+    Bullet::Prove(pp.bullet_part, bullet_instance_solvent, bullet_witness_solvent, transcript_str, bullet_right_solvent_proof);
 
-    newCTx.plaintext_wellformed_proof = plaintext_wellform_product_proof; 
-
+    newCTx.bullet_right_solvent_proof = bullet_right_solvent_proof;
     std::vector<ECPoint> sum_ct_left(n);
     std::vector<ECPoint> sum_ct_right(n);
     for(auto i = 0; i < n; i++){
@@ -837,7 +824,7 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     condition4 = Bullet::Verify(bullet_pp, bullet_instance_solvent, transcript_str, bullet_witness_solvent);
 
     #ifdef DEMO
-        if (condition3) std::cout << "range proofs for transfer amount and updated balance accept" << std::endl; 
+        if (condition4) std::cout << "range proofs for transfer amount and updated balance accept" << std::endl; 
         else std::cout << "range proofs for transfer amount and updated balance reject" << std::endl; 
     #endif
 
@@ -924,7 +911,7 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
         if (condition8) std::cout << "NIZKPoK for MutiliPlaintextEquality accepts  " << std::endl; 
         else std::cout << "NIZKPoK for MutiliPlaintextEquality rejects  " << std::endl; 
     #endif
-
+    
     bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7 && condition8; 
 
     std::string ctx_file = GetCTxFileName(newCTx); 

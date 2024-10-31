@@ -517,12 +517,12 @@ bool Verify(PP &pp, Instance &instance, Proof &proof, std::string &transcript_st
     }
     #endif
 
-    if (Validity){ 
-        std::cout<< "proof accepts >>>" << std::endl; 
-    }
-    else{
-        std::cout<< "proof rejects >>>" << std::endl; 
-    }
+    // if (Validity){ 
+    //     std::cout<< "proof accepts >>>" << std::endl; 
+    // }
+    // else{
+    //     std::cout<< "proof rejects >>>" << std::endl; 
+    // }
     return Validity;
 
 }
