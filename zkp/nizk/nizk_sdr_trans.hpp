@@ -85,7 +85,8 @@ std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
     return vec_index;  
 }   
 
-Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcript_str)
+// button: 0 for sender; 1 for receiver;
+Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcript_str, bool button)
 {
     Proof proof;
 
@@ -161,7 +162,10 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     }
     
     // compute tau
-    BigInt tau = (zG * x0m.ModInverse(order) % order).ModNegate(order);
+    BigInt tau = (zG * x0m.ModInverse(order) % order);
+    if(button == 0){
+        tau = tau.ModNegate(order);
+    }
     
     // range proof
     size_t range_len = 32;
@@ -186,7 +190,10 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     First_Bullet_witness.r = GenRandomBigIntVectorLessThan(max_agg_num,order);
     First_Bullet_witness.v = GenRandomBigIntVectorLessThan(max_agg_num,order);
     First_Bullet_witness.r[0] = tau;
-    First_Bullet_witness.v[0] = witness.v.ModNegate(order);
+    First_Bullet_witness.v[0] = witness.v;
+    if(button == 0){
+        First_Bullet_witness.v[0] = witness.v.ModNegate(order);
+    }
 
     // set transcript_str
     First_Bullet_str = "";
@@ -216,7 +223,10 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     Second_Bullet_witness.r = GenRandomBigIntVectorLessThan(max_agg_num,order);
     Second_Bullet_witness.v = GenRandomBigIntVectorLessThan(max_agg_num,order);
     Second_Bullet_witness.r[0] = tau;
-    Second_Bullet_witness.v[0] = witness.v.ModNegate(order) - bn_1;
+    Second_Bullet_witness.v[0] = witness.v - bn_1;
+    if(button == 0){
+        Second_Bullet_witness.v[0] = witness.v.ModNegate(order) - bn_1;
+    }
 
     // set transcript_str
     Second_Bullet_str = "";
@@ -285,9 +295,9 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
 }
 
-
+// button: 0 for sender; 1 for receiver;
 // check NIZK proof PI for Ci = Enc(pki, m; r) the witness is (r1, r2, m)
-bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof)
+bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof, bool button)
 {
    
     size_t m = pp.vec_g_1oon.size();
@@ -314,9 +324,9 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     BigInt x0m_inv = exp_x[m].ModInverse(order);  
 
     //right part
-    ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order);
+    ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order) ;
     for(auto d=1;d<m;d++){
-        right += proof.vec_C[d] * (bn_0 - exp_x[d] + order);
+        right += proof.vec_C[d] * (bn_0 - exp_x[d] + order) ;
     }
     
     //left part
@@ -390,7 +400,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     First_Bullet_pp.vec_h = pp.vec_h1;
     // set instance
     First_Bullet_instance.C = GenRandomECPointVector(1);
-    First_Bullet_instance.C[0] = G * x0m_inv.ModNegate(order); 
+    First_Bullet_instance.C[0] = G * x0m_inv;
+    if(button == 0){
+        First_Bullet_instance.C[0] = G * x0m_inv.ModNegate(order);
+    } 
 
     // set transcript_str
     First_Bullet_str = "";
@@ -423,7 +436,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     Second_Bullet_pp.vec_h = pp.vec_h2;
     // set instance
     Second_Bullet_instance.C = GenRandomECPointVector(1);
-    Second_Bullet_instance.C[0] = G * x0m_inv.ModNegate(order) + pp.h.Invert(); 
+    Second_Bullet_instance.C[0] = G * x0m_inv + pp.h.Invert();
+    if(button == 0){
+        Second_Bullet_instance.C[0] = G * x0m_inv.ModNegate(order) + pp.h.Invert();
+    } 
 
     // set transcript_str
     Second_Bullet_str = "";
@@ -444,7 +460,9 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     vec_condition[2] = Bullet::Verify(Second_Bullet_pp,Second_Bullet_instance,Second_Bullet_str,Second_Bullet_proof);
 
 
-
+    // std::cout<<std::boolalpha<<"Condition 1 (1oon) = "<<vec_condition[0]<<std::endl;
+    // std::cout<<std::boolalpha<<"Condition 2 (range v) = "<<vec_condition[1]<<std::endl;
+    // std::cout<<std::boolalpha<<"Condition 3 (range v-1) = "<<vec_condition[2]<<std::endl;
     bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2];
 
 
@@ -467,6 +485,3 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 }
 
 #endif
-
-
-

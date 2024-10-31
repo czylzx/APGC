@@ -262,6 +262,7 @@ namespace Solvent_Equal
         linbit_witness.r = witness.rb_l0;
         linbit_witness.vec_a = vec_l0;
 
+
         LinBit::Proof linbit_proof;
         transcript_str = "";
         linbit_proof = LinBit::Prove(linbit_pp, linbit_instance, linbit_witness, transcript_str);
@@ -329,11 +330,27 @@ namespace Solvent_Equal
         std::vector<BigInt> vec_P = lagrange(vec_P_x, vec_s); 
         //std::vector<BigInt> vec_a(n);
         std::vector<BigInt> vec_sk(n);
+
+        for(auto i =0 ;i < n; i++)
+        {
+            vec_sk[i] = vec_s[i] * witness.sk % order;
+        }
+
         std::vector<BigInt> vec_r(n);
+        for(auto i = 0; i < n; i++)
+        {
+            vec_r[i] = vec_s[i] * witness.r_refresh % order;
+        }
         std::vector<BigInt> vec_v(n);
+        for(auto i = 0; i < n; i++)
+        {
+            vec_v[i] = vec_s[i] * witness.balance_sender % order;
+        }
 
         std::vector<BigInt> vec_y(4*n);
+        
         std::copy(vec_P.begin(), vec_P.end(), vec_y.begin());
+
         std::copy(vec_sk.begin(), vec_sk.end(), vec_y.begin()+n);
         std::copy(vec_r.begin(), vec_r.end(), vec_y.begin()+2*n);
         std::copy(vec_v.begin(), vec_v.end(), vec_y.begin()+3*n);
@@ -377,11 +394,11 @@ namespace Solvent_Equal
             zs += rho[d] * x_pow % order;
             x_pow = x_pow * x % order;
         }
+        zs = zs * x_pow.ModInverse(order) % order;
         zs = (-zs + order) % order;
-        zs = zs / x_pow;
-        zs = zs % order;
 
         proof.P_equal = P_equal;
+        
         proof.vec_C = vec_C;
         proof.zs = zs;
         

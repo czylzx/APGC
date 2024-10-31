@@ -43,7 +43,7 @@ void GenRandomInstanceWitness(TwistedExponentialElGamal::PP pp_enc, Solvent_Equa
     std::vector<TwistedExponentialElGamal::CT> vec_participant_transfer_ct(n);
     std::vector<TwistedExponentialElGamal::CT> vec_participant_balance_ct(n);
 
-    BigInt v_balance = BigInt(128);
+    BigInt v_balance = BigInt(64);
     for(auto i = 0; i < n; i++)
     {
         vec_participant_balance_ct[i] = TwistedExponentialElGamal::Enc(pp_enc, instance.pk[i], v_balance, GenRandomBigIntLessThan(order));
@@ -65,7 +65,8 @@ void GenRandomInstanceWitness(TwistedExponentialElGamal::PP pp_enc, Solvent_Equa
     }
     instance.Sum_CL = sum_ct_left;
     instance.Sum_CR = sum_ct_right;
-    witness.balance_sender = BigInt(96);
+    //witness.balance_sender = TwistedExponentialElGamal::Dec(pp_enc, sk, vec_participant_balance_ct[sender_index]);
+    witness.balance_sender = BigInt(32);
     instance.Refresh_CL = instance.pk[sender_index] * witness.r_refresh;
     instance.Refresh_CR = pp_enc.g * witness.r_refresh + pp_enc.h * witness.balance_sender ;
     

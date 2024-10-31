@@ -13,8 +13,9 @@ std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
     return vec_index;  
 }
 
+
 void GenRandomInstanceWitness(SdrTrans::PP &pp, SdrTrans::Instance &instance, 
-                                 SdrTrans::Witness &witness, bool flag)
+                                 SdrTrans::Witness &witness, bool flag, bool button)
 {
     // generate a true statement (false with overwhelming probability)
     PrintSplitLine('-'); 
@@ -33,7 +34,11 @@ void GenRandomInstanceWitness(SdrTrans::PP &pp, SdrTrans::Instance &instance,
 
     srand(time(0));
     witness.l = rand() % N;
-    witness.v = -BigInt(32);
+    witness.v = BigInt(32);
+    // for sender
+    if(button == 0){
+        witness.v = -witness.v;
+    }
     witness.rL = GenRandomBigIntLessThan(order);
     witness.rR = GenRandomBigIntLessThan(order);
 
@@ -52,9 +57,10 @@ void GenRandomInstanceWitness(SdrTrans::PP &pp, SdrTrans::Instance &instance,
         instance.B += noise;
         instance.vec_C[witness.l] += noise;
     }
+
 }
 
-void test_nizk_SdrTrans(bool flag)
+void test_nizk_SdrTrans(bool flag, bool button)
 {
     PrintSplitLine('-');
     std::cout << "begin the test of Sdr Trans proof >>>" << std::endl; 
@@ -66,10 +72,10 @@ void test_nizk_SdrTrans(bool flag)
     SdrTrans::Witness witness;  
     std::string transcript_str;
 
-    GenRandomInstanceWitness(pp, instance, witness, flag); 
+    GenRandomInstanceWitness(pp, instance, witness, flag, button); 
     auto start_time = std::chrono::steady_clock::now(); // start to count the time
     transcript_str = "";
-    SdrTrans::Proof proof = SdrTrans::Prove(pp, instance, witness, transcript_str); 
+    SdrTrans::Proof proof = SdrTrans::Prove(pp, instance, witness, transcript_str, button); 
     auto end_time = std::chrono::steady_clock::now(); // end to count the time
     auto running_time = end_time - start_time;
     std::cout << "SdrTrans proof generation takes time = " 
@@ -78,7 +84,7 @@ void test_nizk_SdrTrans(bool flag)
 
     start_time = std::chrono::steady_clock::now(); // start to count the time
     transcript_str = "";
-    SdrTrans::Verify(pp, instance, transcript_str, proof);
+    SdrTrans::Verify(pp, instance, transcript_str, proof, button);
     end_time = std::chrono::steady_clock::now(); // end to count the time
     running_time = end_time - start_time;
     std::cout << "SdrTrans proof verification takes time = " 
@@ -91,14 +97,17 @@ void test_nizk_SdrTrans(bool flag)
 int main()
 {
     CRYPTO_Initialize();  
-    
-    test_nizk_SdrTrans(true);
-    test_nizk_SdrTrans(false); 
+
+    // button: 0 for sender; 1 for receiver;
+    test_nizk_SdrTrans(true,1);
+    test_nizk_SdrTrans(false,1);
+
+    test_nizk_SdrTrans(true,0);
+    test_nizk_SdrTrans(false,0);
+
+    // test_nizk_SdrTrans(false); 
 
     CRYPTO_Finalize(); 
 
     return 0; 
 }
-
-
-

@@ -41,6 +41,7 @@ struct PP{
     Bullet::PP bullet_part; 
     TwistedExponentialElGamal::PP enc_part;
     SdrTrans::PP sdr_trans;
+    SdrTrans::PP sdr_trans_receiver;
     WellFormProduct::PP wellform_part;
     Solvent_Equal::PP solvent_equal_part;
     AnyOutOfMany::PP any_out_of_many_part;
@@ -254,6 +255,7 @@ struct ToManyCTx{
     std::vector<TwistedExponentialElGamal::CT> vec_participant_balance_ct;  
 
     ECPoint vector_commitment_B_l0;
+    ECPoint vector_commitment_B_l1;
     TwistedExponentialElGamal::CT refresh_updated_ct;
     // validity proof
     WellFormProduct::Proof plaintext_wellformed_proof;
@@ -264,6 +266,7 @@ struct ToManyCTx{
     Bullet::Proof bullet_right_solvent_proof;
 
     SdrTrans::Proof sdr_trans_proof_sender;
+    SdrTrans::Proof sdr_trans_proof_receiver;
 
     //TwistedExponentialElGamal::CT refresh_sender_updated_balance_ct;  // fresh encryption of updated balance (randomness is known)
     //PlaintextKnowledge::Proof plaintext_knowledge_proof; // NIZKPoK for refresh ciphertext (X^*, Y^*)
@@ -353,7 +356,15 @@ size_t GetTheNthBit(size_t index, size_t n)
 {
     return (index>>n)&1;
 }
-
+std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
+{
+    std::vector<size_t> vec_index(m); 
+    for(auto j = 0; j < m; j++){
+        vec_index[j] = l % n;  
+        l = l / n; 
+    }
+    return vec_index;  
+}
 ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, std::vector<ECPoint> &vec_pkr, std::vector<AnonSet> &vec_AnonSet, size_t sender_index, std::vector<size_t> vec_index)
 { 
     ToManyCTx newCTx; 
@@ -565,14 +576,16 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     ECPoint base_h = pp.enc_part.h;
 
     std::vector<BigInt> vec_l0;
+  
     for(auto i = 0; i < m; i ++ ){
         if(GetTheNthBit(sender_index, i) == 1){
-            vec_l0.push_back(bn_1);
+            vec_l0.push_back(bn_1); 
         }
         else{
             vec_l0.push_back(bn_0);
         }
     }
+
     BigInt rb_l0 = GenRandomBigIntLessThan(order);
     ECPoint B_l0 = ECPointVectorMul(base_g, vec_l0) + base_h * rb_l0;
     newCTx.vector_commitment_B_l0 = B_l0;
@@ -651,11 +664,59 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
 
     SdrTrans::Proof sdr_proof;
     transcript_str = "";
-    sdr_proof = SdrTrans::Prove(sdr_pp, sdr_instance, sdr_witness, transcript_str);
+    sdr_proof = SdrTrans::Prove(sdr_pp, sdr_instance, sdr_witness, transcript_str, 0);
 
     newCTx.sdr_trans_proof_sender = sdr_proof;
+
     #ifdef DEMO
-        std::cout << "6. generate NIZKPoK for supervise" << std::endl;  
+        std::cout << "6. generate NIZKPoK for receiver" << std::endl;  
+    #endif
+    SdrTrans::PP sdr_pp_receiver = SdrTrans::Setup(n);
+        
+    sdr_pp_receiver.g = pp.enc_part.g;
+    sdr_pp_receiver.h = pp.enc_part.h;
+    sdr_pp_receiver.vec_g_1oon = base_g;
+    pp.sdr_trans_receiver = sdr_pp_receiver;
+    size_t receiver_index = vec_index[0];
+    //std::cout << "receiver_index: " << receiver_index <<std::endl;
+    BigInt rb_l1 = GenRandomBigIntLessThan(order);
+    std::vector<BigInt> vec_l1;
+
+    for(auto i = 0; i < m; i ++ ){
+        if(GetTheNthBit(receiver_index, i) == 1){
+            //std::cout<<"i = "<<i<<std::endl;
+            vec_l1.push_back(bn_1);
+        }
+        else{
+            vec_l1.push_back(bn_0);
+        }
+    }
+
+    ECPoint B_l1 = ECPointVectorMul(base_g, vec_l1) + base_h * rb_l1;
+    newCTx.vector_commitment_B_l1 = B_l1;
+    SdrTrans::Instance sdr_instance_receiver;
+    sdr_instance_receiver.B = B_l1;
+    sdr_instance_receiver.vec_C.resize(n);
+    for(auto i = 0; i < n; i++){
+        sdr_instance_receiver.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+    SdrTrans::Witness sdr_witness_receiver;
+    sdr_witness_receiver.l = receiver_index;
+    //sdr_witness.v = vec_v[0];
+    sdr_witness_receiver.v = v;
+    sdr_witness_receiver.rL = vec_r[receiver_index];
+    sdr_witness_receiver.rR = rb_l1;
+
+ 
+
+    SdrTrans::Proof sdr_proof_receiver;
+    transcript_str = "";
+    sdr_proof_receiver = SdrTrans::Prove(sdr_pp_receiver, sdr_instance_receiver, sdr_witness_receiver, transcript_str, 1);
+
+    newCTx.sdr_trans_proof_receiver = sdr_proof_receiver;
+
+    #ifdef DEMO
+        std::cout << "7. generate NIZKPoK for supervise" << std::endl;  
     #endif
 
     MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);
@@ -819,13 +880,31 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 
     SdrTrans::Proof sdr_proof = newCTx.sdr_trans_proof_sender;
     transcript_str = "";
-    condition6 = SdrTrans::Verify(sdr_pp, sdr_instance,transcript_str, sdr_proof);
+    condition6 = SdrTrans::Verify(sdr_pp, sdr_instance,transcript_str, sdr_proof,0);
 
     #ifdef DEMO
         if (condition6) std::cout << "NIZKPoK for SdrTrans accepts  " << std::endl; 
         else std::cout << "NIZKPoK for SdrTrans rejects  " << std::endl; 
     #endif
+
     bool condition7;
+    SdrTrans::PP sdr_pp_receiver = pp.sdr_trans_receiver;
+    SdrTrans::Instance sdr_instance_receiver;
+    sdr_instance_receiver.B = newCTx.vector_commitment_B_l1;
+    sdr_instance_receiver.vec_C.resize(n);
+    for(auto i = 0; i < n; i++){
+        sdr_instance_receiver.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    SdrTrans::Proof sdr_proof_receiver = newCTx.sdr_trans_proof_receiver;
+    transcript_str = "";
+    condition7 = SdrTrans::Verify(sdr_pp_receiver, sdr_instance_receiver,transcript_str, sdr_proof_receiver,1);
+
+    #ifdef DEMO
+        if (condition7) std::cout << "NIZKPoK for SdrTrans_receiver accepts  " << std::endl; 
+        else std::cout << "NIZKPoK for SdrTrans_receiver rejects  " << std::endl; 
+    #endif
+    bool condition8;
     MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = pp.superivisor_plaintext_wellformed_part;
     MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
     superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
@@ -838,15 +917,15 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 
     MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof = newCTx.superivisor_plaintext_wellformed_proof;
     transcript_str = "";
-    condition7 = MutiliPlaintextEquality::Verify(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
+    condition8 = MutiliPlaintextEquality::Verify(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
                         transcript_str, superivisor_plaintext_wellformed_proof);
 
     #ifdef DEMO
-        if (condition7) std::cout << "NIZKPoK for MutiliPlaintextEquality accepts  " << std::endl; 
+        if (condition8) std::cout << "NIZKPoK for MutiliPlaintextEquality accepts  " << std::endl; 
         else std::cout << "NIZKPoK for MutiliPlaintextEquality rejects  " << std::endl; 
     #endif
 
-    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7; 
+    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7 && condition8; 
 
     std::string ctx_file = GetCTxFileName(newCTx); 
     #ifdef DEMO
