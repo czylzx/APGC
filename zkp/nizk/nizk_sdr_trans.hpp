@@ -8,7 +8,7 @@
 #include "../../commitment/pedersen.hpp"
 #include "../../utility/polymul.hpp"
 #include "../../zkp/nizk/nizk_1oon_for_sdr_trans.hpp"
-#include "../../zkp/bulletproofs/bullet_proof_for_sdr_trans.hpp"
+#include "../../zkp/bulletproofs/bullet_proof.hpp"
 
 
 namespace SdrTrans{
@@ -120,7 +120,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     witness_1oon.r = witness.rL;
     witness_1oon.l = witness.l;
     witness_1oon.rB = witness.rR;
-    witness_1oon.v = witness.v;
+    // witness_1oon.v = witness.v;
     
     _1oon::Proof LB_proof = _1oon::Prove(pp_1oon, instance_1oon, witness_1oon, transcript_1oon);
     
@@ -150,9 +150,6 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     _1oon_str += proof.A.ToByteString();
     _1oon_str += proof.C.ToByteString();
     _1oon_str += proof.D.ToByteString();
-    // for(auto i=0;i<m;i++){
-    //     _1oon_str += proof.vec_C[i].ToByteString();
-    // }
 
     // computer the challenge x_0
     BigInt x0 = Hash::StringToBigInt(_1oon_str);
@@ -164,7 +161,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     }
     
     // compute tau
-    BigInt tau = zG * x0m.ModInverse(order) % order;
+    BigInt tau = (zG * x0m.ModInverse(order) % order).ModNegate(order);
     
     // range proof
     size_t range_len = 32;
@@ -188,10 +185,8 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     // set witness
     First_Bullet_witness.r = GenRandomBigIntVectorLessThan(max_agg_num,order);
     First_Bullet_witness.v = GenRandomBigIntVectorLessThan(max_agg_num,order);
-    // First_Bullet_witness.r[0] = tau;
-    // First_Bullet_witness.v[0] = witness.v.ModNegate(order);
-    First_Bullet_witness.r[0] = witness.v.ModNegate(order);
-    First_Bullet_witness.v[0] = tau;
+    First_Bullet_witness.r[0] = tau;
+    First_Bullet_witness.v[0] = witness.v.ModNegate(order);
 
     // set transcript_str
     First_Bullet_str = "";
@@ -286,8 +281,6 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.a2 = Second_Bullet_proof.ip_proof.a;
     proof.b2 = Second_Bullet_proof.ip_proof.b;
 
-    // std::vector<ECPoint> aaa = {pp.g * zG,pp.g * zG + pp.h * witness.v};
-    // PrintECPointVector(aaa,"");
     return proof;
 
 }
@@ -307,9 +300,6 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     str += proof.A.ToByteString();
     str += proof.C.ToByteString();
     str += proof.D.ToByteString();
-    // for(auto i=0;i<m;i++){
-    //     str += proof.vec_C[i].ToByteString();
-    // }
 
     // computer the challenge x_0
     BigInt x0 = Hash::StringToBigInt(str);
@@ -353,8 +343,6 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     }
 
     ECPoint G = left + right;
-    std::vector<ECPoint> aaa = {G,G};
-    PrintECPointVector(aaa,"");
     
     // check
     std::vector<bool> vec_condition(3, false);
@@ -380,8 +368,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     proof_1oon.vec_f = proof.vec_f;
     proof_1oon.zA = proof.zA;
     proof_1oon.zC = proof.zC;
-    // proof_1oon.zd = GenRandomBigIntLessThan(order);
-    proof_1oon.G = G;
+    
     proof_1oon.zd = proof.zG;
     vec_condition[0] = _1oon::Verify(pp_1oon,instance_1oon,transcript_str,proof_1oon);
 
@@ -404,9 +391,6 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     // set instance
     First_Bullet_instance.C = GenRandomECPointVector(1);
     First_Bullet_instance.C[0] = G * x0m_inv.ModNegate(order); 
-
-    // std::vector<ECPoint> aaa = {G,G};
-    // PrintECPointVector(aaa,"");
 
     // set transcript_str
     First_Bullet_str = "";
@@ -441,8 +425,6 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     Second_Bullet_instance.C = GenRandomECPointVector(1);
     Second_Bullet_instance.C[0] = G * x0m_inv.ModNegate(order) + pp.h.Invert(); 
 
-
-    // std::vector<BigInt> aaa = {x0}
     // set transcript_str
     Second_Bullet_str = "";
     // set proof
