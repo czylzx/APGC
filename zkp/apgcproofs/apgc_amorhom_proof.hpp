@@ -50,6 +50,9 @@ namespace AmorHom
     struct Proof
     {
         EqmdlProduct2::Proof eqmdl_proof;
+        ECPoint Ap;
+        ECPoint Af;
+        BigInt f;
     };
 
     PP Setup(size_t n)
@@ -88,7 +91,7 @@ namespace AmorHom
 
         BigInt p = Hash::StringToBigInt(transcript_str);
 
-        std::vector<ECPoint> vec_base_new(pp.n*4);
+        //std::vector<ECPoint> vec_base_new(pp.n*4);
 
         ECPoint init;
         init.SetInfinity();
@@ -163,23 +166,64 @@ namespace AmorHom
         F_prime = instance.S * x_exp_m + pp.h * (-instance.zs);
         F_prime = F_prime * vec_p[pp.n*4];
 
+        std::vector<BigInt> vec_a_init = GenRandomBigIntVectorLessThan(pp.n*4, order);
+        BigInt b_inint = GenRandomBigIntLessThan(order);
+
+        ECPoint Ap = ECPointVectorMul(pp.vec_u, vec_a_init) +pp.u * b_inint;
+        ECPoint Af = ECPointVectorMul(vec_base_new, vec_a_init);
+
+        proof.Af = Af;
+        proof.Ap = Ap;
+
+        transcript_str = "";
+        transcript_str += Ap.ToByteString() + Af.ToByteString();
+
+        //compute the challenge e
+        BigInt e = Hash::StringToBigInt(transcript_str);
+        
+        std::vector<BigInt> vec_z_tmp =BigIntVectorModScalar(witness.vec_y, e, order);
+
+        std::vector<BigInt> vec_z = BigIntVectorModAdd(vec_z_tmp, vec_a_init, order);
+
+        BigInt f = (b_inint + e * witness.rp) % order;
+
+        proof.f = f;
+        //std::vector<BigInt> vec_z = BigIntVectorModScalar(witness.vec_y, e, order);     
         EqmdlProduct2:: PP eqmdl_pp = EqmdlProduct2::Setup(pp.n*4, true);
         eqmdl_pp.vec_g = vec_base_new;
         eqmdl_pp.vec_p = pp.vec_u;
 
+        //PrintECPointVector(eqmdl_pp.vec_g, "eqmdl_pp.vec_g");
+        //PrintECPointVector(eqmdl_pp.vec_p, "eqmdl_pp.vec_p");
         EqmdlProduct2::Instance eqmdl_instance;
-        eqmdl_instance.P = instance.P;
-        eqmdl_instance.G = F_prime;
+        eqmdl_instance.P = instance.P * e + Ap + pp.u * (-f);
+        eqmdl_instance.G = F_prime * e + Af;
 
+        /*text*/
+        ECPoint left1 = ECPointVectorMul(pp.vec_u, vec_z);
+        ECPoint left2 = ECPointVectorMul(vec_base_new, vec_z);
+
+        if(left1 != eqmdl_instance.P)
+        {
+            std::cout << "left1 != eqmdl_instance.P" << std::endl;
+        }
+        if(left2 != eqmdl_instance.G)
+        {
+            std::cout << "left2 != eqmdl_instance.G" << std::endl;
+        }
+        //eqmdl_instance.P.Print("eqmdl_instance.P");
+        //eqmdl_instance.G.Print("eqmdl_instance.G");
 
         EqmdlProduct2::Witness eqmdl_witness;
-        eqmdl_witness.vec_a = witness.vec_y;
+        eqmdl_witness.vec_a = vec_z;
 
         EqmdlProduct2::Proof eqmdl_proof;
         transcript_str = "";
         EqmdlProduct2::Prove(eqmdl_pp, eqmdl_instance, eqmdl_witness, transcript_str, eqmdl_proof);
 
         proof.eqmdl_proof = eqmdl_proof;
+
+
 
     }
 
@@ -199,7 +243,7 @@ namespace AmorHom
 
         BigInt p = Hash::StringToBigInt(transcript_str);
 
-        std::vector<ECPoint> vec_base_new(pp.n*4);
+        //std::vector<ECPoint> vec_base_new(pp.n*4);
 
         ECPoint init;
         init.SetInfinity();
@@ -268,26 +312,32 @@ namespace AmorHom
             }
             vec_base_new[i] = vec_base_new[i] + vec_y_base_5[i] * vec_p[pp.n*4];    
         }
-        ECPoint F_prime;
-        BigInt x_exp_m = instance.x.ModExp(-pp.m, order);
-        F_prime = instance.S * x_exp_m + pp.h * (-instance.zs);
-        F_prime = F_prime * vec_p[pp.n*4];
-        
+    
         //compute F'
         ECPoint F_prime;
         BigInt x_exp_m = instance.x.ModExp(-pp.m, order);
         F_prime = instance.S * x_exp_m + pp.h * (-instance.zs);
         F_prime = F_prime * vec_p[pp.n*4];
 
+        transcript_str = "";
+        transcript_str += proof.Ap.ToByteString() + proof.Af.ToByteString();
+
+        //compute the challenge e
+        BigInt e = Hash::StringToBigInt(transcript_str);
+
         EqmdlProduct2:: PP eqmdl_pp = EqmdlProduct2::Setup(pp.n*4, true);
         eqmdl_pp.vec_g = vec_base_new;
         eqmdl_pp.vec_p = pp.vec_u;
+
+        //PrintECPointVector(eqmdl_pp.vec_g, "vec_g");
+        //PrintECPointVector(eqmdl_pp.vec_p, "vec_p");
    
         EqmdlProduct2::Instance eqmdl_instance;
-        eqmdl_instance.P = instance.P;
-        eqmdl_instance.G = F_prime;
+        eqmdl_instance.P = instance.P * e + proof.Ap + pp.u * (-proof.f);
+        eqmdl_instance.G = F_prime * e + proof.Af ;
     
-
+        //eqmdl_instance.P.Print("P");
+        //eqmdl_instance.G.Print("G");
         EqmdlProduct2::Proof eqmdl_proof;
 
         transcript_str = "";

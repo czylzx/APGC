@@ -147,20 +147,52 @@ namespace Solvent_Equal
             exit(EXIT_FAILURE);
         }
         std::vector<BigInt> result(n, bn_0);
+        std::vector<BigInt> Xi(2*n+1,bn_0);
+        std::vector<BigInt> Fi(2*n+1,bn_0);
+        std::vector<BigInt> Xi_temp(2*n+1,bn_0);
+        BigInt temp;
+        Xi[1] = bn_1;
+        Xi[0] = -x[0];
+        for(auto i = 2; i <= n; i++)
+        {
+            Xi[i] = Xi[i-1];
+            for(auto j = i-1; j > 0; j--)
+            {
+                Xi[j] = (Xi[j] * (-x[i-1]) % order + Xi[j-1]) % order;
+            }
+            Xi[0] = Xi[0] * (-x[i-1]) % order;
+        }
         for(auto i = 0; i < n; i++)
         {
-            BigInt num = bn_1;
-            BigInt den = bn_1;
+            temp = bn_1;
             for(auto j = 0; j < n; j++)
             {
-                if(i != j)
+                if(i == j)
                 {
-                    num = num * x[j];
-                    den = den * (x[j] - x[i]);
+                    continue;
                 }
+                temp = temp * (x[i] - x[j]) % order;
             }
-            result[i] = y[i] * num * den.ModInverse(order);
+            temp = temp.ModInverse(order);
+            temp = y[i] * temp % order;
+
+            for(auto j = 0; j <= n; j++)
+            {
+                Xi_temp[j] = Xi[j];
+            }
+            for(auto j = n-1; j >= 0; j--)
+            {
+                Fi[j] = Xi_temp[j+1];
+                Xi_temp[j] = (Xi_temp[j] - (Xi_temp[j+1] * (-x[i])) % order) % order;
+            }
+
+            for(auto j = 0; j < n; j++)
+            {
+                result[j] = (result[j] + Fi[j] * temp %order) % order;
+            }
+            
         }
+        return result;     
     }
     /*
         Generate an argument PI for Relation 3 on pp.13: P = g^a h^b u^<a,b>

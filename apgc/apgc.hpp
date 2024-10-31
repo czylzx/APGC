@@ -544,7 +544,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         std::cout << "3. generate NIZKPoK for solvent" << std::endl;  
     #endif
 
-    size_t m = log(n);
+    size_t m = log2(n);
     std::vector<ECPoint> base_g = GenRandomECPointVector(m);
     ECPoint base_h = pp.enc_part.h;
 

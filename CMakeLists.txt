@@ -198,6 +198,11 @@ TARGET_LINK_LIBRARIES(test_apgc_wellform ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX
 ADD_EXECUTABLE(test_apgc_sumzero test/test_apgc_sumzero.cpp)
 TARGET_LINK_LIBRARIES(test_apgc_sumzero ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
+ADD_EXECUTABLE(test_apgc_solvent_equal test/test_apgc_solvent_equal.cpp)
+TARGET_LINK_LIBRARIES(test_apgc_solvent_equal ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
+ADD_EXECUTABLE(test_lagrange test/test_lagrange.cpp)
+TARGET_LINK_LIBRARIES(test_lagrange ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 #ADD_EXECUTABLE(test_apgc_wellform test/test_apgc_wellform.cpp)
 #TARGET_LINK_LIBRARIES(test_apgc_wellform ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
