@@ -329,51 +329,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     ip_instance.P = ECPointVectorMul(vec_A, vec_a);  
     ip_instance.P = ip_instance.P + ip_pp.u * proof.tx; // P = A + S^x + h^{-mu} u^tx
 
-    //ip_instance.P.Print("ip_instance.P");
-
-    /**/
-    // std::copy(pp.vec_h.begin(), pp.vec_h.end(), vec_A_test.begin()+LEN);
-    // vec_A_test[2*LEN] = pp.u ;
-    // std::vector<BigInt> vec_a_test(2*LEN+1);
-    // std::copy(llx.begin(), llx.end(), vec_a_test.begin());
-    // std::copy(rrx.begin(), rrx.end(), vec_a_test.begin()+LEN);
-    // vec_a_test[2*LEN] = proof.mu;
-
-    // ECPoint P_test = ECPointVectorMul(vec_A_test, vec_a_test);
-    // P_test.Print("P_test");
-
-    // std::vector<ECPoint> vec_A_test2(2*LEN+2);
-    // std::copy(pp.vec_g.begin(), pp.vec_g.end(), vec_A_test2.begin());
-    // std::copy(pp.vec_h.begin(), pp.vec_h.end(), vec_A_test2.begin()+LEN);
-    // vec_A_test2[2*LEN] = proof.A;
-    // vec_A_test2[2*LEN+1] = proof.S;
-    // //vec_A_test2[2*LEN+2] = pp.u * e;
-
-    // BigInt z_minus = z.ModNegate(order);
-    // std::vector<BigInt> vec_z_minus_unary(LEN, z_minus);
-    // std::vector<BigInt> vec_z(LEN, z);
-    // std::vector<BigInt> vec_zz_P = BigIntVectorModScalar(vec_y_power, z_minus, BigInt(order)); // -z y^n
-
-    // std::vector<BigInt> vec_a_test2(2*LEN+2);
-    // std::copy(vec_z_minus_unary.begin(), vec_z_minus_unary.end(), vec_a_test2.begin());
-    // std::copy(vec_z.begin(), vec_z.end(), vec_a_test2.begin()+LEN);
-    // vec_a_test2[2*LEN] = bn_1;
-    // vec_a_test2[2*LEN+1] = x;
-    // //vec_a_test2[2*LEN+2] = -proof.mu;
-
-    // ECPoint P_test2 = ECPointVectorMul(vec_A_test2, vec_a_test2);
-
-    // if(P_test == P_test2)
-    // {
-    //     std::cout<<"P_test == P_test2"<<std::endl;
-    // }
-    // else
-    // {
-    //     std::cout<<"P_test != P_test2"<<std::endl;
-    // }
-    // PrintECPointVector(ip_pp.vec_g, "ip_pp.vec_g");
-    // PrintECPointVector(ip_pp.vec_h, "ip_pp.vec_h");
-    // ip_pp.u.Print("u");
+    
     InnerProduct::Prove(ip_pp, ip_instance, ip_witness, transcript_str, proof.ip_proof); 
     //InnerProduct::Prove(ip_pp_E, ip_instance_E, ip_witness_E, transcript_str, proof.ip_proof_E); 
 

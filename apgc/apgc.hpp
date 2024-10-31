@@ -630,11 +630,12 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         std::cout << "5. generate NIZKPoK for solvent" << std::endl;  
     #endif
     SdrTrans::PP sdr_pp = SdrTrans::Setup(n);
-    pp.sdr_trans = sdr_pp;
+    
     sdr_pp.g = pp.enc_part.g;
     sdr_pp.h = pp.enc_part.h;
     sdr_pp.vec_g_1oon = base_g;
 
+    pp.sdr_trans = sdr_pp;
     SdrTrans::Instance sdr_instance;
     sdr_instance.B = B_l0;
     sdr_instance.vec_C.resize(n);
@@ -643,8 +644,8 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     }
 
     SdrTrans::Witness sdr_witness;
-    sdr_witness.l =sender_index;
-    sdr_witness.v = v;
+    sdr_witness.l = sender_index;
+    sdr_witness.v = -v;
     sdr_witness.rL = vec_r[sender_index];
     sdr_witness.rR = rb_l0;
 
