@@ -38,6 +38,7 @@ struct Witness
     size_t l;
     BigInt r;
     BigInt rB;
+
 };
 
 
@@ -99,7 +100,6 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     
     //proof lin bit
     LinBit::PP linbit_pp = LinBit::Setup(m);
-    // linbit_pp.h = pp.u;
     linbit_pp.h = pp.h;
     for(auto i=0;i<m;i++){
         linbit_pp.vec_g[i] = pp.vec_g[i];
@@ -233,58 +233,11 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     
     std::string transcript_str_linbit = "";
     vec_condition[0] = LinBit::Verify(linbit_pp, linbit_instance, transcript_str_linbit, linbit_proof);
-    
-    
-    // check condition 2
 
-    // std::vector<BigInt> exp_x(m+1);
-    // exp_x[0] = bn_1;  
-    // for(auto k = 1; k <= m; k++){
-    //     exp_x[k] = exp_x[k-1] * x % order; 
-    // }
-
-    // //right part
-    // ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order);
-    // for(auto d=1;d<m;d++){
-    //     right += proof.vec_C[d] * (bn_0 - exp_x[d] + order);
-    // }
-    
-    // //left part
-    // //compute p_j(x)
-    // std::vector<BigInt> vec_P = GenRandomBigIntVectorLessThan(N,order); 
-
-    // for(auto j = 0; j < N; j++){
-    //     vec_P[j] = bn_1;
-    //     std::vector<size_t> vec_index = Decompose(j, 2, m); 
- 
-    //     for(auto b = 0; b < m; b++){        
-    //         if(vec_index[b] == 1){
-    //             vec_P[j] = vec_P[j] * proof.vec_f[b] % order;
-    //         }
-    //         else{
-    //             vec_P[j] = vec_P[j] * ((x - proof.vec_f[b] + order) % order) % order;
-    //         }    
-    //     } 
-    // }
-    
-    // ECPoint left = instance.vec_c[0] * vec_P[0];
-    // for(auto i=1;i<N;i++){
-    //     left += instance.vec_c[i] * vec_P[i];
-    // }
-
-    // if((left + right) == (pp.g * proof.zd)){ 
-    //     vec_condition[1] = true; 
-    // }
-
-    // bool Validity = vec_condition[0] && vec_condition[1];
     bool Validity = vec_condition[0];
 
 
     #ifdef DEBUG
-    // for(auto i = 0; i < 2; i++){
-    //     std::cout << std::boolalpha << "Condition "<< std::to_string(i) <<" (1oon proof) = " 
-    //               << vec_condition[i] << std::endl; 
-    // }
     if (Validity){ 
         std::cout << "NIZK proof for One out of many accepts >>>" << std::endl; 
     } else {
