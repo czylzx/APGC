@@ -328,6 +328,7 @@ namespace Solvent_Equal
             vec_P_x[j] = BigInt(j);
         }
         std::vector<BigInt> vec_P = lagrange(vec_P_x, vec_s); 
+        //PrintBigIntVector(vec_P, "vec_P");
         //std::vector<BigInt> vec_a(n);
         std::vector<BigInt> vec_sk(n);
 
@@ -354,6 +355,8 @@ namespace Solvent_Equal
         std::copy(vec_sk.begin(), vec_sk.end(), vec_y.begin()+n);
         std::copy(vec_r.begin(), vec_r.end(), vec_y.begin()+2*n);
         std::copy(vec_v.begin(), vec_v.end(), vec_y.begin()+3*n);
+
+        //PrintBigIntVector(vec_y, "vec_y");
 
         BigInt rP = GenRandomBigIntLessThan(order);
         ECPoint P_equal = ECPointVectorMul(pp.vec_u, vec_y) + pp.u * rP;

@@ -95,6 +95,7 @@ namespace AmorHom
 
         ECPoint init;
         init.SetInfinity();
+        
         std::vector<ECPoint> vec_base_new(pp.n*4, init);
 
         std::vector<std::vector<ECPoint>> vec_y_base_1(pp.n, std::vector<ECPoint>(pp.n*4,init));
@@ -147,6 +148,7 @@ namespace AmorHom
             }
            
         }
+        // std::vector<ECPoint> vec_base_new_text(pp.n*4, init);
         for(auto i = 0; i < pp.n*4; i++)
         {
             for(auto j = 0; j < pp.n; j++)
@@ -155,17 +157,42 @@ namespace AmorHom
                                 + vec_y_base_2[j][i] * vec_p[j+n]
                                 + vec_y_base_3[j][i] * vec_p[j+2*n]
                                 + vec_y_base_4[j][i] * vec_p[j+3*n];
-                                
+            //   vec_base_new_text[i] = vec_base_new_text[i] + vec_y_base_1[j][i] * vec_p[j]
+            //                     + vec_y_base_2[j][i] * vec_p[j+n]
+            //                     + vec_y_base_3[j][i] * vec_p[j+2*n]
+            //                     + vec_y_base_4[j][i] * vec_p[j+3*n];              
             }
             vec_base_new[i] = vec_base_new[i] + vec_y_base_5[i] * vec_p[pp.n*4];    
         }
-        
+        // ECPoint test_F = ECPointVectorMul(vec_base_new_text, witness.vec_y); 
+        // PrintECPointVector(vec_base_new_text, "vec_base_new_text");
+        // PrintBigIntVector(witness.vec_y, "witness.vec_y");
+        // if(test_F.IsAtInfinity())
+        // {
+        //     std::cout << "test_F is at infinity" << std::endl;
+        // }
+        // else
+        // {
+        //     std::cout << "test_F is not at infinity" << std::endl;
+        // }
         //compute F'
         ECPoint F_prime;
         BigInt x_exp_m = instance.x.ModExp(-pp.m, order);
         F_prime = instance.S * x_exp_m + pp.h * (instance.zs);
         F_prime = F_prime * vec_p[pp.n*4];
 
+        // ECPoint F_test = ECPointVectorMul(vec_base_new, witness.vec_y);
+        
+        // if(F_test != F_prime)
+        // {
+        //     std::cout << "F_test != F_prime" << std::endl;
+        // }
+        // else
+        // {
+        //     std::cout << "F_test == F_prime" << std::endl;
+        // }
+
+        F_prime = ECPointVectorMul(vec_base_new, witness.vec_y);
         std::vector<BigInt> vec_a_init = GenRandomBigIntVectorLessThan(pp.n*4, order);
         BigInt b_inint = GenRandomBigIntLessThan(order);
 
@@ -200,17 +227,17 @@ namespace AmorHom
         eqmdl_instance.G = F_prime * e + Af;
 
         /*text*/
-        ECPoint left1 = ECPointVectorMul(pp.vec_u, vec_z);
-        ECPoint left2 = ECPointVectorMul(vec_base_new, vec_z);
+        // ECPoint left1 = ECPointVectorMul(pp.vec_u, vec_z);
+        // ECPoint left2 = ECPointVectorMul(vec_base_new, vec_z);
 
-        if(left1 != eqmdl_instance.P)
-        {
-            std::cout << "left1 != eqmdl_instance.P" << std::endl;
-        }
-        if(left2 != eqmdl_instance.G)
-        {
-            std::cout << "left2 != eqmdl_instance.G" << std::endl;
-        }
+        // if(left1 != eqmdl_instance.P)
+        // {
+        //     std::cout << "left1 != eqmdl_instance.P" << std::endl;
+        // }
+        // if(left2 != eqmdl_instance.G)
+        // {
+        //     std::cout << "left2 != eqmdl_instance.G" << std::endl;
+        // }
         //eqmdl_instance.P.Print("eqmdl_instance.P");
         //eqmdl_instance.G.Print("eqmdl_instance.G");
 
@@ -316,7 +343,7 @@ namespace AmorHom
         //compute F'
         ECPoint F_prime;
         BigInt x_exp_m = instance.x.ModExp(-pp.m, order);
-        F_prime = instance.S * x_exp_m + pp.h * (-instance.zs);
+        F_prime = instance.S * x_exp_m + pp.h * (instance.zs);
         F_prime = F_prime * vec_p[pp.n*4];
 
         transcript_str = "";
