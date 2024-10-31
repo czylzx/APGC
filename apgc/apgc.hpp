@@ -5,12 +5,7 @@ this hpp implements the APGC functionality
 #define APGC_HPP_
 
 #include "../pke/twisted_exponential_elgamal.hpp"        // implement Twisted ElGamal  
-#include "../zkp/nizk/nizk_plaintext_equality.hpp" // NIZKPoK for plaintext equality
-#include "../zkp/nizk/nizk_plaintext_knowledge.hpp"        // NIZKPoK for ciphertext/honest encryption 
-#include "../zkp/nizk/nizk_dlog_equality.hpp"      // NIZKPoK for dlog equality
-#include "../zkp/nizk/nizk_dlog_knowledge.hpp"     // NIZKPoK for dlog knowledge
 #include "../zkp/bulletproofs/bullet_proof.hpp"    // implement Log Size Bulletproof
-#include "../gadget/range_proof.hpp"
 #include "../utility/serialization.hpp"
 #include "../zkp/apgcproofs/apgc_wellform.hpp"
 #include "../zkp/nizk/nizk_multi_plaintext_equality.hpp"
@@ -265,7 +260,6 @@ struct ToManyCTx{
     SdrTrans::Proof sdr_trans_proof_sender;
     SdrTrans::Proof sdr_trans_proof_receiver;
 
-    std::vector<PlaintextEquality::Proof> vec_plaintext_equality_proof;    
 
 };
 
@@ -303,33 +297,6 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
     std::cout << APGC_CTx_File << " size = " << fin.tellg() << " bytes" << std::endl;
     fin.close(); 
 }
-
-// std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
-// {
-//     // std::string str;
-//     // str += newCTx.sn.ToHexString() + newCTx.pks.ToByteString(); 
-//     // for(auto i = 0; i < newCTx.vec_pkr.size(); i++){
-//     //     str += newCTx.vec_pkr[i].ToByteString();
-//     // }
-
-//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_balance_ct);  
-//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_transfer_ct);  
-//     // for(auto i = 0; i < newCTx.vec_receiver_transfer_ct.size(); i++){
-//     //     str += TwistedExponentialElGamal::MRCTToByteString(newCTx.vec_receiver_transfer_ct[i]);
-//     // }
-
-//     // for(auto i = 0; i < newCTx.vec_plaintext_equality_proof.size(); i++){
-//     //     str += PlaintextEquality::ProofToByteString(newCTx.vec_plaintext_equality_proof[i]);  
-//     // }
-   
-//     // str += Bullet::ProofToByteString(newCTx.bullet_right_solvent_proof);   
-//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.refresh_sender_updated_balance_ct);  
-//     // str += PlaintextKnowledge::ProofToByteString(newCTx.plaintext_knowledge_proof); 
-
-//     // str += DLOGKnowledge::ProofToByteString(newCTx.balance_proof); 
-
-//     // return str;
-// }
 
 /* 
 * generate a confidential transaction: pks transfers vi coins to pkr[i] 
@@ -386,26 +353,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     for(auto i = 0; i < k; i++){
         v += vec_v[i]; 
     }
-    // we will use the random position to generate the memo later
-    // size_t sender_index;
-    // std::vector<size_t> vec_index(k);
-    // std::set<ECPoint> set_pkr;
-    // for(auto i = 0; i < k; i++){
-    //     set_pkr.insert(vec_pkr[i]);
-    // }
-    // for(auto i = 0; i < n; i++){
-    //     if(vec_AnonSet[i].identity == Acct_sender.identity){
-    //         sender_index = i;
-    //     }
-    //     else
-    //     {
-    //         if(set_pkr.find(vec_AnonSet[i].pk) != set_pkr.end()){
-    //             vec_index.push_back(i);
-    //         }
-    //     }
-    // }
-    // std::sort(vec_index.begin(), vec_index.end());
-
+    
     std::vector<ECPoint> vec_pk(n);
     std::vector<TwistedExponentialElGamal::MRCT> vec_participant_transfer_ct(n);
     std::vector<BigInt> vec_r(n);
@@ -911,7 +859,7 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
         if (condition8) std::cout << "NIZKPoK for MutiliPlaintextEquality accepts  " << std::endl; 
         else std::cout << "NIZKPoK for MutiliPlaintextEquality rejects  " << std::endl; 
     #endif
-    
+
     bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7 && condition8; 
 
     std::string ctx_file = GetCTxFileName(newCTx); 
@@ -930,72 +878,10 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 }
 
 
-/* print the details of a confidential to-many-transaction */
-void PrintCTx(ToManyCTx &newCTx)
-{
-    // PrintSplitLine('-');
-    // std::string ctx_file = GetCTxFileName(newCTx);  
-    // std::cout << ctx_file << " content >>>>>>" << std::endl; 
-
-    // std::cout << "current sender balance >>>" << std::endl; 
-    // TwistedExponentialElGamal::PrintCT(newCTx.sender_balance_ct);
-    // std::cout << std::endl; 
-
-    // newCTx.pks.Print("sender's public key"); 
-    // std::cout << "receiver's public key" << std::endl;
-    // PrintECPointVector(newCTx.vec_pkr, "pkr");
-    // std::cout << std::endl;  
-
-
-    // std::cout << "sender's transfer ct >>>" << std::endl;
-    // TwistedExponentialElGamal::PrintCT(newCTx.sender_transfer_ct);
-    // std::cout << std::endl;
-
-    // std::cout << "receiver's transfer ct >>>" << std::endl; 
-    // for(auto i = 0; i < newCTx.vec_receiver_transfer_ct.size(); i++){
-    //     TwistedExponentialElGamal::PrintCT(newCTx.vec_receiver_transfer_ct[i]); 
-    //     std::cout << std::endl;
-    // } 
-
-    // std::cout << "NIZKPoK for plaintext equality of receiver's ct >>>" << std::endl; 
-    // for(auto i = 0; i < newCTx.vec_plaintext_equality_proof.size(); i++){
-    //     PlaintextEquality::PrintProof(newCTx.vec_plaintext_equality_proof[i]); 
-    // }
-    // std::cout << std::endl; 
-
-    // std::cout << "NIZKPoK for input-output balance >>> " << std::endl; 
-    // DLOGKnowledge::PrintProof(newCTx.balance_proof); // prove v = v_1 +...+ v_n 
-    // std::cout << std::endl;
-
-    // std::cout << "range proofs for transfer amount and updated balance >>> " << std::endl; 
-    // Bullet::PrintProof(newCTx.bullet_right_solvent_proof); 
-    // std::cout << std::endl;
-
-    // std::cout << "refresh updated balance >>>" << std::endl;
-    // TwistedExponentialElGamal::PrintCT(newCTx.refresh_sender_updated_balance_ct); 
-    // std::cout << std::endl;
-
-    // std::cout << "NIZKPoK of refresh updated balance >>>" << std::endl; 
-    // PlaintextKnowledge::PrintProof(newCTx.plaintext_knowledge_proof); 
-    // std::cout << std::endl;
-    
-    // std::cout << "NIZKPoK for refreshing correctness >>>" << std::endl; 
-    // DLOGEquality::PrintProof(newCTx.correct_refresh_proof);     // fresh updated balance is correct
-    // std::cout << std::endl;
-
-    PrintSplitLine('-'); 
-}
-
 /* update Account if CTx is valid */
 bool UpdateAccount(PP &pp, ToManyCTx &newCTx, Account &Acct_sender, std::vector<Account> &vec_Acct_participant)
 {    
-    //Acct_sender.sn = Acct_sender.sn + bn_1;
-
-    // update sender's balance
-    // Acct_sender.balance_ct = TwistedExponentialElGamal::HomoSub(Acct_sender.balance_ct, newCTx.sender_transfer_ct); 
-    // Acct_sender.m = TwistedExponentialElGamal::Dec(pp.enc_part, Acct_sender.sk, Acct_sender.balance_ct); 
-    // SaveAccount(Acct_sender, Acct_sender.identity+".account"); 
-
+   
     TwistedExponentialElGamal::CT c_in; 
     for(auto i = 0; i < vec_Acct_participant.size(); i++){
         c_in.X = newCTx.vec_participant_transfer_ct[i].vec_X[0]; 
