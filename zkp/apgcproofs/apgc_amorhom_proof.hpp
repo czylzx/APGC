@@ -163,7 +163,7 @@ namespace AmorHom
         //compute F'
         ECPoint F_prime;
         BigInt x_exp_m = instance.x.ModExp(-pp.m, order);
-        F_prime = instance.S * x_exp_m + pp.h * (-instance.zs);
+        F_prime = instance.S * x_exp_m + pp.h * (instance.zs);
         F_prime = F_prime * vec_p[pp.n*4];
 
         std::vector<BigInt> vec_a_init = GenRandomBigIntVectorLessThan(pp.n*4, order);
