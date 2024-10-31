@@ -69,9 +69,7 @@ void test_nizk_SdrTrans(bool flag)
     GenRandomInstanceWitness(pp, instance, witness, flag); 
     auto start_time = std::chrono::steady_clock::now(); // start to count the time
     transcript_str = "";
-    
     SdrTrans::Proof proof = SdrTrans::Prove(pp, instance, witness, transcript_str); 
-
     auto end_time = std::chrono::steady_clock::now(); // end to count the time
     auto running_time = end_time - start_time;
     std::cout << "SdrTrans proof generation takes time = " 
@@ -95,7 +93,7 @@ int main()
     CRYPTO_Initialize();  
     
     test_nizk_SdrTrans(true);
-    //test_nizk_SdrTrans(false); 
+    test_nizk_SdrTrans(false); 
 
     CRYPTO_Finalize(); 
 
