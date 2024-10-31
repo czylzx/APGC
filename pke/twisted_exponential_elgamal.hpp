@@ -244,8 +244,21 @@ BigInt Dec(const PP &pp, const BigInt& sk, const CT &ct)
     bool SUCCESS = ShanksDLOG(pp.h, M, pp.MSG_LEN, pp.TRADEOFF_NUM, m); 
     if(SUCCESS == false)
     {
-        std::cout << "decyption fails in the specified range" << std::endl; 
-        exit(EXIT_FAILURE); 
+        ECPoint M_inv = M.Invert();
+        bool success = ShanksDLOG(pp.g, M_inv, pp.MSG_LEN, pp.TRADEOFF_NUM, m);
+        if(success == false){
+            std::cout << "decyption fails in the specified range-negative" << std::endl; 
+            m = BigInt((1<<32)+1);
+            //m.Print("m");
+            //exit(EXIT_FAILURE); 
+        }
+        else
+        {
+            m=-m;
+            //m.Print("m");
+        }
+        // std::cout << "decyption fails in the specified range" << std::endl; 
+        // exit(EXIT_FAILURE); 
     }  
     return m; 
 }

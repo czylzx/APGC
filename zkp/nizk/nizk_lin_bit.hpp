@@ -50,13 +50,13 @@ struct Proof
  
 
 /* Setup algorithm */ 
-PP Setup(std::vector<ECPoint> vec_g, ECPoint h,size_t N)
+PP Setup(size_t N)
 {
     PP pp; 
-    //pp.vec_g= GenRandomECPointVector(N);
-    //pp.h = GenRandomECPoint();
-    pp.vec_g = vec_g;
-    pp.h = h;
+    pp.vec_g= GenRandomECPointVector(N);
+    pp.h = GenRandomECPoint();
+    // pp.vec_g = vec_g;
+    // pp.h = h;
 
     return pp; 
 }

@@ -132,7 +132,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     auto start_time = std::chrono::steady_clock::now();
 
     size_t LEN = pp.com_len;
-    std::cout<<"LEN = "<<LEN<<std::endl;
+    //std::cout<<"LEN = "<<LEN<<std::endl;
     std::vector<BigInt> vec_aL(LEN);
     std::vector<BigInt> vec_aR(LEN);
 
@@ -278,9 +278,9 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     proof.fs = (rs * x + proof.fs) % order;
 
     // transmit llx and rrx via inner product proof
-    std::cout<<"begin to prove inner product proof"<<std::endl;
+    //std::cout<<"begin to prove inner product proof"<<std::endl;
     InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false); 
-    std::cout<<"InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false) Success "<<std::endl;
+    //std::cout<<"InnerProduct::PP ip_pp = InnerProduct::Setup(LEN, false) Success "<<std::endl;
     ip_pp.vec_g.resize(LEN); 
     std::vector<ECPoint> com_new_g(LEN);
     //std::vector<ECPoint> com_new;
@@ -329,7 +329,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     ip_instance.P = ECPointVectorMul(vec_A, vec_a);  
     ip_instance.P = ip_instance.P + ip_pp.u * proof.tx; // P = A + S^x + h^{-mu} u^tx
 
-    ip_instance.P.Print("ip_instance.P");
+    //ip_instance.P.Print("ip_instance.P");
 
     /**/
     // std::copy(pp.vec_h.begin(), pp.vec_h.end(), vec_A_test.begin()+LEN);

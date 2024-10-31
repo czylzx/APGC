@@ -17,6 +17,7 @@ this hpp implements the APGC functionality
 #include "../zkp/apgcproofs/apgc_sum_zero.hpp"
 #include "../zkp/nizk/nizk_any_out_of_many.hpp"
 #include "../zkp/apgcproofs/apgc_sdr_solvent_equal.hpp"
+#include "../zkp/nizk/nizk_sdr_trans.hpp"
 
 #define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
@@ -39,7 +40,12 @@ struct PP{
 
     Bullet::PP bullet_part; 
     TwistedExponentialElGamal::PP enc_part;
-
+    SdrTrans::PP sdr_trans;
+    WellFormProduct::PP wellform_part;
+    Solvent_Equal::PP solvent_equal_part;
+    AnyOutOfMany::PP any_out_of_many_part;
+    SumZero::PP sum_zero_part;
+    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_part;
     ECPoint pka; // supervisor's pk
 };
 
@@ -59,7 +65,9 @@ struct Account{
 
 struct SuperviseResult{
     ECPoint sender_pk;
+    std::string sender_identity;
     std::vector<ECPoint> receiver_pks;
+    std::vector<std::string> receiver_identities;
     std::vector<BigInt> receiver_coins_values;
 };
 
@@ -113,13 +121,11 @@ void SavePP(PP &pp, std::string APGC_PP_File)
     std::ofstream fout; 
     fout.open(APGC_PP_File, std::ios::binary); 
 
-    fout << pp.MAX_RECEIVER_NUM; 
+    fout << pp.MAX_RECEIVER_NUM;
     fout << pp.SN_LEN;
-    fout << pp.MAXIMUM_COINS;  
-    fout << pp.pka; 
-
-    fout << pp.bullet_part; 
-    fout << pp.enc_part; 
+    fout << pp.MAXIMUM_COINS;
+    fout << pp.pka;
+    fout << pp.bullet_part;
 
     fout.close();   
 }
@@ -256,6 +262,9 @@ struct ToManyCTx{
     AnyOutOfMany::Proof slack_participant_proof;
     Solvent_Equal::Proof solvent_equal_proof;
     Bullet::Proof bullet_right_solvent_proof;
+
+    SdrTrans::Proof sdr_trans_proof_sender;
+
     //TwistedExponentialElGamal::CT refresh_sender_updated_balance_ct;  // fresh encryption of updated balance (randomness is known)
     //PlaintextKnowledge::Proof plaintext_knowledge_proof; // NIZKPoK for refresh ciphertext (X^*, Y^*)
     //DLOGEquality::Proof correct_refresh_proof;     // fresh updated balance is correct
@@ -409,6 +418,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
 
     newCTx.vec_pk.resize(n);
     newCTx.vec_participant_transfer_ct.resize(n);
+    newCTx.vec_participant_balance_ct.resize(n);
     std::vector<ECPoint> vec_pk_multi(2); 
     size_t cnt=0;
     for(auto i = 0; i < n; i++)
@@ -450,6 +460,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         std::cout << "2. generate NIZKPoK for tx" << std::endl;  
     #endif
     WellFormProduct::PP plaintext_wellform_product_pp = WellFormProduct::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    pp.wellform_part = plaintext_wellform_product_pp;
     WellFormProduct::Instance plaintext_wellform_product_instance;
 
     plaintext_wellform_product_instance.vec_pk = newCTx.vec_pk;
@@ -487,12 +498,15 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     }
     plaintext_wellform_product_witness.vec_v = vec_v_plaintext_wellform;
 
-    std::string transcript_str = "";
+    transcript_str = "";
     WellFormProduct::Proof plaintext_wellform_product_proof;
     WellFormProduct::Prove(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
                         plaintext_wellform_product_witness, transcript_str, plaintext_wellform_product_proof);
+    
+    newCTx.plaintext_wellformed_proof = plaintext_wellform_product_proof;
 
     SumZero::PP plaintext_sumzero_pp = SumZero::Setup(pp.enc_part.g, n);
+    pp.sum_zero_part = plaintext_sumzero_pp;
     SumZero::Instance plaintext_sumzero_instance;
     plaintext_sumzero_instance.C = newCTx.vec_participant_transfer_ct[0].Y;
     for(auto i = 1; i < n; i++){
@@ -505,16 +519,17 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     SumZero::Proof plaintext_sumzero_proof;
     SumZero::Prove(plaintext_sumzero_pp, plaintext_sumzero_instance, plaintext_sumzero_witness, transcript_str, plaintext_sumzero_proof);
 
-
+    newCTx.plaintext_sumzero_proof = plaintext_sumzero_proof;
     #ifdef DEMO
         PrintSplitLine('-'); 
     #endif
 
     #ifdef DEMO
-        std::cout << "2. generate NIZKPoK for slack_participant" << std::endl;  
+        std::cout << "3. generate NIZKPoK for slack_participant" << std::endl;  
     #endif
     
     AnyOutOfMany::PP slack_participant_pp = AnyOutOfMany::Setup(n, pp.enc_part.g, pp.enc_part.h);
+    pp.any_out_of_many_part = slack_participant_pp;
     AnyOutOfMany::Instance slack_participant_instance;
     slack_participant_instance.vec_com.resize(n);
     for(auto i = 0; i < n; i++)
@@ -540,8 +555,9 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     AnyOutOfMany::Proof slack_participant_proof;
     AnyOutOfMany::Prove(slack_participant_pp, slack_participant_instance, slack_participant_witness, slack_participant_proof, transcript_str);
     
+    newCTx.slack_participant_proof = slack_participant_proof;
     #ifdef DEMO
-        std::cout << "3. generate NIZKPoK for solvent" << std::endl;  
+        std::cout << "4. generate NIZKPoK for solvent" << std::endl;  
     #endif
 
     size_t m = log2(n);
@@ -549,7 +565,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     ECPoint base_h = pp.enc_part.h;
 
     std::vector<BigInt> vec_l0;
-    for(auto i = m-1; i >= 0; i--){
+    for(auto i = 0; i < m; i ++ ){
         if(GetTheNthBit(sender_index, i) == 1){
             vec_l0.push_back(bn_1);
         }
@@ -574,7 +590,9 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     bullet_witness_solvent.r = {r_refresh}; 
     bullet_witness_solvent.v = {balance_sender};
 
-    Bullet::Prove(pp.bullet_part, bullet_instance_solvent, bullet_witness_solvent, transcript_str, newCTx.bullet_right_solvent_proof); 
+    Bullet::Prove(pp.bullet_part, bullet_instance_solvent, bullet_witness_solvent, transcript_str, newCTx.bullet_right_solvent_proof);
+
+    newCTx.plaintext_wellformed_proof = plaintext_wellform_product_proof; 
 
     std::vector<ECPoint> sum_ct_left(n);
     std::vector<ECPoint> sum_ct_right(n);
@@ -584,6 +602,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     }
 
     Solvent_Equal::PP solvent_equal_pp = Solvent_Equal::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    pp.solvent_equal_part = solvent_equal_pp;
     Solvent_Equal::Instance solvent_equal_instance;
     solvent_equal_instance.B = newCTx.vector_commitment_B_l0;
     solvent_equal_instance.Sum_CL = sum_ct_left;
@@ -605,11 +624,41 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
 
     Solvent_Equal::Prove(solvent_equal_pp, solvent_equal_instance, solvent_equal_witness, transcript_str, solvent_equal_proof);
 
+    newCTx.solvent_equal_proof = solvent_equal_proof;
+
     #ifdef DEMO
-        std::cout << "4. generate NIZKPoK for supervise" << std::endl;  
+        std::cout << "5. generate NIZKPoK for solvent" << std::endl;  
+    #endif
+    SdrTrans::PP sdr_pp = SdrTrans::Setup(n);
+    pp.sdr_trans = sdr_pp;
+    sdr_pp.g = pp.enc_part.g;
+    sdr_pp.h = pp.enc_part.h;
+    sdr_pp.vec_g_1oon = base_g;
+
+    SdrTrans::Instance sdr_instance;
+    sdr_instance.B = B_l0;
+    sdr_instance.vec_C.resize(n);
+    for(auto i = 0; i < n; i++){
+        sdr_instance.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    SdrTrans::Witness sdr_witness;
+    sdr_witness.l =sender_index;
+    sdr_witness.v = v;
+    sdr_witness.rL = vec_r[sender_index];
+    sdr_witness.rR = rb_l0;
+
+    SdrTrans::Proof sdr_proof;
+    transcript_str = "";
+    sdr_proof = SdrTrans::Prove(sdr_pp, sdr_instance, sdr_witness, transcript_str);
+
+    newCTx.sdr_trans_proof_sender = sdr_proof;
+    #ifdef DEMO
+        std::cout << "6. generate NIZKPoK for supervise" << std::endl;  
     #endif
 
     MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    pp.superivisor_plaintext_wellformed_part = superivisor_plaintext_wellformed_pp;
     MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
 
     superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
@@ -628,6 +677,8 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     transcript_str = "";
     MutiliPlaintextEquality::Prove(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
                         superivisor_plaintext_wellformed_witness, transcript_str, superivisor_plaintext_wellformed_proof);
+                    
+    newCTx.superivisor_plaintext_wellformed_proof = superivisor_plaintext_wellformed_proof;
 
     auto end_time = std::chrono::steady_clock::now(); 
 
@@ -642,6 +693,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
 bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 {     
     size_t n = newCTx.vec_pk.size(); 
+    size_t m = log2(n);
     if(IsPowerOfTwo(n) == false){
         std::cerr << "receiver num must be 2^n-1" << std::endl;
     }
@@ -656,26 +708,71 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     auto start_time = std::chrono::steady_clock::now(); 
 
     // generate NIZK proof for validity of transfer              
-    bool condition1 = true;      
+    bool condition1 = false;  
+
+    WellFormProduct::PP plaintext_wellform_product_pp = pp.wellform_part;
+    WellFormProduct::Instance plaintext_wellform_product_instance;  
+    plaintext_wellform_product_instance.vec_pk = newCTx.vec_pk;
+    plaintext_wellform_product_instance.vec_CL.resize(n);
+    plaintext_wellform_product_instance.vec_CR.resize(n);
+    for(auto i = 0; i < n; i++){
+        plaintext_wellform_product_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[0];
+        plaintext_wellform_product_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    WellFormProduct::Proof plaintext_wellform_product_proof = newCTx.plaintext_wellformed_proof;
+    transcript_str = "";
+    condition1 = WellFormProduct::Verify(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
+                        transcript_str, plaintext_wellform_product_proof);
     
     #ifdef DEMO
-        if (condition1) std::cout << "NIZKPoK for plaintext equality accepts" << std::endl; 
-        else std::cout << "NIZKPoK for plaintext equality rejects" << std::endl; 
+        if (condition1) std::cout << "NIZKPoK for tx accepts" << std::endl; 
+        else std::cout << "NIZKPoK for tx rejects" << std::endl; 
     #endif
 
     // check V2
-    bool condition2; 
-    
+    bool condition2 = false; 
+    SumZero::PP plaintext_sumzero_pp = pp.sum_zero_part;
+    SumZero::Instance plaintext_sumzero_instance;
+    plaintext_sumzero_instance.C = newCTx.vec_participant_transfer_ct[0].Y;
+    for(auto i = 1; i < n; i++){
+        plaintext_sumzero_instance.C += newCTx.vec_participant_transfer_ct[i].Y;
+    }
+    SumZero::Proof plaintext_sumzero_proof = newCTx.plaintext_sumzero_proof;
+    transcript_str = "";
+    condition2 = SumZero::Verify(plaintext_sumzero_pp, plaintext_sumzero_instance, transcript_str, plaintext_sumzero_proof);
 
     #ifdef DEMO
-        if (condition2) std::cout << "NIZKPoK for refresh updated balance accepts" << std::endl; 
-        else std::cout << "NIZKPoK for refresh updated balance rejects" << std::endl; 
+        if (condition2) std::cout << "NIZKPoK for sumzero accepts" << std::endl; 
+        else std::cout << "NIZKPoK for sumzero rejects" << std::endl; 
     #endif
 
-    // check range proof
-    bool condition3; 
-
     
+    bool condition3 = false; 
+    AnyOutOfMany::PP slack_participant_pp = pp.any_out_of_many_part;
+    AnyOutOfMany::Instance slack_participant_instance;
+    slack_participant_instance.vec_com.resize(n);
+    for(auto i = 0; i < n; i++)
+    {
+        slack_participant_instance.vec_com[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+    AnyOutOfMany::Proof slack_participant_proof = newCTx.slack_participant_proof;
+    transcript_str = "";
+    condition3 = AnyOutOfMany::Verify(slack_participant_pp, slack_participant_instance, slack_participant_proof, transcript_str);
+    
+    #ifdef DEMO
+        if (condition3) std::cout << "aoon proofs  accept" << std::endl; 
+        else std::cout << "raoon proofs reject" << std::endl; 
+    #endif
+
+    bool condition4;
+    Bullet::PP bullet_pp = pp.bullet_part;
+    Bullet::Instance bullet_instance_solvent;
+    bullet_instance_solvent.C = {newCTx.refresh_updated_ct.Y};
+
+    Bullet::Proof bullet_witness_solvent = newCTx.bullet_right_solvent_proof;
+    transcript_str = "";
+    condition4 = Bullet::Verify(bullet_pp, bullet_instance_solvent, transcript_str, bullet_witness_solvent);
 
     #ifdef DEMO
         if (condition3) std::cout << "range proofs for transfer amount and updated balance accept" << std::endl; 
@@ -683,24 +780,72 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     #endif
 
     // check balance proof
-    bool condition4;
+    bool condition5;
 
-    DLOGKnowledge::PP dlog_knowledge_pp = DLOGKnowledge::Setup();
+    Solvent_Equal::PP solvent_equal_pp = pp.solvent_equal_part;
+    Solvent_Equal::Instance solvent_equal_instance;
+    solvent_equal_instance.B = newCTx.vector_commitment_B_l0;
+    std::vector<ECPoint> sum_ct_left(n);
+    std::vector<ECPoint> sum_ct_right(n);
+    for(auto i = 0; i < n; i++){
+        sum_ct_left[i] = newCTx.vec_participant_transfer_ct[i].vec_X[0] + newCTx.vec_participant_balance_ct[i].X;
+        sum_ct_right[i] = newCTx.vec_participant_transfer_ct[i].Y + newCTx.vec_participant_balance_ct[i].Y;
+    }
+    solvent_equal_instance.Sum_CL = sum_ct_left;
+    solvent_equal_instance.Sum_CR = sum_ct_right;
+    solvent_equal_instance.Refresh_CL = newCTx.refresh_updated_ct.X;
+    solvent_equal_instance.Refresh_CR = newCTx.refresh_updated_ct.Y;
+    solvent_equal_instance.pk = newCTx.vec_pk;
+
+    Solvent_Equal::Proof solvent_equal_proof = newCTx.solvent_equal_proof;
+    transcript_str = "";
+    condition5 = Solvent_Equal::Verify(solvent_equal_pp, solvent_equal_instance, transcript_str, solvent_equal_proof);
 
     #ifdef DEMO
-        if (condition4) std::cout << "NIZKPoK for balance proof accepts" << std::endl; 
-        else std::cout << "NIZKPoK for balance proof rejects" << std::endl; 
+        if (condition5) std::cout << "NIZKPoK for Solvent_Equal proof accepts" << std::endl; 
+        else std::cout << "NIZKPoK for Solvent_Equal proof rejects" << std::endl; 
     #endif
 
     // check the NIZK proof for refresh correctness
-    bool condition5;
+    bool condition6;
+    SdrTrans::PP sdr_pp = pp.sdr_trans;
+    SdrTrans::Instance sdr_instance;
+    sdr_instance.B = newCTx.vector_commitment_B_l0;
+    sdr_instance.vec_C.resize(n);
+    for(auto i = 0; i < n; i++){
+        sdr_instance.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    SdrTrans::Proof sdr_proof = newCTx.sdr_trans_proof_sender;
+    transcript_str = "";
+    condition6 = SdrTrans::Verify(sdr_pp, sdr_instance,transcript_str, sdr_proof);
 
     #ifdef DEMO
-        if (condition5) std::cout << "NIZKPoK for refreshing correctness accepts and ctx is authenticated" << std::endl; 
-        else std::cout << "NIZKPoK for refreshing correctness rejects or ctx is unauthenticated" << std::endl; 
+        if (condition6) std::cout << "NIZKPoK for SdrTrans accepts  " << std::endl; 
+        else std::cout << "NIZKPoK for SdrTrans rejects  " << std::endl; 
+    #endif
+    bool condition7;
+    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = pp.superivisor_plaintext_wellformed_part;
+    MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
+    superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
+    superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
+    superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
+    for(auto i = 0; i < n; i++){
+        superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
+        superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof = newCTx.superivisor_plaintext_wellformed_proof;
+    transcript_str = "";
+    condition7 = MutiliPlaintextEquality::Verify(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
+                        transcript_str, superivisor_plaintext_wellformed_proof);
+
+    #ifdef DEMO
+        if (condition7) std::cout << "NIZKPoK for MutiliPlaintextEquality accepts  " << std::endl; 
+        else std::cout << "NIZKPoK for MutiliPlaintextEquality rejects  " << std::endl; 
     #endif
 
-    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5; 
+    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7; 
 
     std::string ctx_file = GetCTxFileName(newCTx); 
     #ifdef DEMO
@@ -816,6 +961,7 @@ bool Miner(PP &pp, ToManyCTx &newCTx, Account &Acct_sender, std::vector<Account>
         return true; 
     }
     else{
+        SaveCTx(newCTx, ctx_file);
         std::cout << ctx_file << " is discarded" << std::endl; 
         return false; 
     }
@@ -843,15 +989,25 @@ std::vector<BigInt> SuperviseCTx(SP &sp, PP &pp, ToManyCTx &ctx, std::vector<Acc
         if(vec_v[i] < bn_0)
         {
             result.sender_pk = ctx.vec_pk[i];
+            result.sender_identity = vec_Acct_participant[i].identity;
         }
         else if(vec_v[i] > bn_0)
         {
             result.receiver_pks.push_back(ctx.vec_pk[i]);
             result.receiver_coins_values.push_back(vec_v[i]);
+            result.receiver_identities.push_back(vec_Acct_participant[i].identity);
         }
         //std::cout << BN_bn2dec(vec_v[i].bn_ptr) << " coins to " << ctx.vec_pkr[i].ToHexString() << std::endl; 
     } 
-
+    std::cout << result.sender_pk.ToHexString() << " transfers "; 
+    size_t k = result.receiver_pks.size();
+    for(auto i = 0; i < k; i++){
+        std::cout << BN_bn2dec(result.receiver_coins_values[i].bn_ptr) << " coins to " << result.receiver_pks[i].ToHexString() << std::endl;
+    }
+    std::cout << result.sender_identity << " transfers ";
+    for(auto i = 0; i < k; i++){
+        std::cout << BN_bn2dec(result.receiver_coins_values[i].bn_ptr) << " coins to " << result.receiver_identities[i] << std::endl;
+    }
     auto end_time = std::chrono::steady_clock::now(); 
     auto running_time = end_time - start_time;
     std::cout << "supervising ctx takes time = " 
@@ -863,3 +1019,4 @@ std::vector<BigInt> SuperviseCTx(SP &sp, PP &pp, ToManyCTx &ctx, std::vector<Acc
 }
 
 #endif
+ 

@@ -226,6 +226,12 @@ TARGET_LINK_LIBRARIES(test_1oon ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 ADD_EXECUTABLE(test_nizk_multi_plaintext_equality test/test_nizk_multi_plaintext_equality.cpp)
 TARGET_LINK_LIBRARIES(test_nizk_multi_plaintext_equality ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
+ADD_EXECUTABLE(test_sdr_trans test/test_sdr_trans.cpp)
+TARGET_LINK_LIBRARIES(test_sdr_trans ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
+ADD_EXECUTABLE(test_apgc test/test_apgc.cpp)
+TARGET_LINK_LIBRARIES(test_apgc ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
 # mcl
 # add_executable(test_mcl test/test_mcl.cpp)
 # target_link_libraries(test_mcl libmcl.a libgmp.a)

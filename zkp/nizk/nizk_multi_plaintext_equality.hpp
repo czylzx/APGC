@@ -190,12 +190,12 @@ namespace MutiliPlaintextEquality
         if(LEFT1 == RIGHT1)
         {
             V1 = true;
-            std::cout << "V1 is true" << std::endl;
+            //std::cout << "V1 is true" << std::endl;
         }
         if(LEFT2 == RIGHT2)
         {
             V2 = true;
-            std::cout << "V2 is true" << std::endl;
+            //std::cout << "V2 is true" << std::endl;
         }
         Validity = V1 && V2;
         return Validity;

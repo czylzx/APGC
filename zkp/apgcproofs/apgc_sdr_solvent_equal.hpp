@@ -138,62 +138,99 @@ namespace Solvent_Equal
         return (index>>n)&1;
     }
 
-    std::vector<BigInt> lagrange(std::vector<BigInt> x, std::vector<BigInt> y)
-    {
-        size_t n = x.size();
-        if(n != y.size())
-        {
-            std::cerr << "vector size does not match!" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        std::vector<BigInt> result(n, bn_0);
-        std::vector<BigInt> Xi(2*n+1,bn_0);
-        std::vector<BigInt> Fi(2*n+1,bn_0);
-        std::vector<BigInt> Xi_temp(2*n+1,bn_0);
-        BigInt temp;
-        Xi[1] = bn_1;
-        Xi[0] = -x[0];
-        for(auto i = 2; i <= n; i++)
-        {
-            Xi[i] = Xi[i-1];
-            for(auto j = i-1; j > 0; j--)
-            {
-                Xi[j] = (Xi[j] * (-x[i-1]) % order + Xi[j-1]) % order;
-            }
-            Xi[0] = Xi[0] * (-x[i-1]) % order;
-        }
-        for(auto i = 0; i < n; i++)
-        {
-            temp = bn_1;
-            for(auto j = 0; j < n; j++)
-            {
-                if(i == j)
-                {
-                    continue;
-                }
-                temp = temp * (x[i] - x[j]) % order;
-            }
-            temp = temp.ModInverse(order);
-            temp = y[i] * temp % order;
-
-            for(auto j = 0; j <= n; j++)
-            {
-                Xi_temp[j] = Xi[j];
-            }
-            for(auto j = n-1; j >= 0; j--)
-            {
-                Fi[j] = Xi_temp[j+1];
-                Xi_temp[j] = (Xi_temp[j] - (Xi_temp[j+1] * (-x[i])) % order) % order;
-            }
-
-            for(auto j = 0; j < n; j++)
-            {
-                result[j] = (result[j] + Fi[j] * temp %order) % order;
-            }
-            
-        }
-        return result;     
+    std::vector<BigInt> lagrange(std::vector<BigInt> &x, std::vector<BigInt> &y) 
+{
+    size_t n = x.size();
+    if (n != y.size() || n == 0) {
+        std::cerr << "Invalid input vectors!" << std::endl;
+        exit(EXIT_FAILURE);
     }
+
+    std::vector<BigInt> result(n, bn_0);
+
+    for (size_t i = 0; i < n; i++) {
+        BigInt temp = 1;
+        for (size_t j = 0; j < n; j++) {
+            if (i != j) {
+                temp *= (x[i] - x[j]) % order; // 计算基多项式的分母
+            }
+        }
+
+        // 模逆运算
+        BigInt temp_inv = temp.ModInverse(order);
+        BigInt L_i = (y[i] * temp_inv) % order; // L_i(x)
+
+        // 更新结果
+        for (size_t j = 0; j < n; j++) {
+            BigInt term = L_i;
+            for (size_t k = 0; k < n; k++) {
+                if (k != i) {
+                    term = (term * (x[j] - x[k]) % order) % order; // 计算每个 L_i
+                }
+            }
+            result[j] = (result[j] + term) % order; // 累加到结果
+        }
+    }
+
+    return result;
+}
+
+    // std::vector<BigInt> lagrange(std::vector<BigInt> x, std::vector<BigInt> y)
+    // {
+    //     size_t n = x.size();
+    //     if(n != y.size())
+    //     {
+    //         std::cerr << "vector size does not match!" << std::endl;
+    //         exit(EXIT_FAILURE);
+    //     }
+    //     std::vector<BigInt> result(n, bn_0);
+    //     std::vector<BigInt> Xi(2*n+1,bn_0);
+    //     std::vector<BigInt> Fi(2*n+1,bn_0);
+    //     std::vector<BigInt> Xi_temp(2*n+1,bn_0);
+    //     BigInt temp;
+    //     Xi[1] = bn_1;
+    //     Xi[0] = -x[0];
+    //     for(auto i = 2; i <= n; i++)
+    //     {
+    //         Xi[i] = Xi[i-1];
+    //         for(auto j = i-1; j > 0; j--)
+    //         {
+    //             Xi[j] = (Xi[j] * (-x[i-1]) % order + Xi[j-1]) % order;
+    //         }
+    //         Xi[0] = Xi[0] * (-x[i-1]) % order;
+    //     }
+    //     for(auto i = 0; i < n; i++)
+    //     {
+    //         temp = bn_1;
+    //         for(auto j = 0; j < n; j++)
+    //         {
+    //             if(i == j)
+    //             {
+    //                 continue;
+    //             }
+    //             temp = temp * (x[i] - x[j]) % order;
+    //         }
+    //         temp = temp.ModInverse(order);
+    //         temp = y[i] * temp % order;
+
+    //         for(auto j = 0; j <= n; j++)
+    //         {
+    //             Xi_temp[j] = Xi[j];
+    //         }
+    //         for(auto j = n-1; j >= 0; j--)
+    //         {
+    //             Fi[j] = Xi_temp[j+1];
+    //             Xi_temp[j] = (Xi_temp[j] - (Xi_temp[j+1] * (-x[i])) % order) % order;
+    //         }
+
+    //         for(auto j = 0; j < n; j++)
+    //         {
+    //             result[j] = (result[j] + Fi[j] * temp %order) % order;
+    //         }
+            
+    //     }
+    //     return result;     
+    // }
     /*
         Generate an argument PI for Relation 3 on pp.13: P = g^a h^b u^<a,b>
         transcript_str is introduced to be used as a sub-protocol
@@ -214,7 +251,10 @@ namespace Solvent_Equal
                 vec_l0.push_back(bn_0);
             }
         }
-        LinBit::PP linbit_pp = LinBit::Setup(pp.vec_g, pp.h, n);
+        //LinBit::PP linbit_pp = LinBit::Setup(pp.vec_g, pp.h, n);
+        LinBit::PP linbit_pp = LinBit::Setup(n);
+        linbit_pp.vec_g = pp.vec_g;
+        linbit_pp.h = pp.h;
         LinBit::Instance linbit_instance;
         linbit_instance.P = instance.B;
         
@@ -394,7 +434,10 @@ namespace Solvent_Equal
         transcript_str = "";
         size_t n = pp.VECTOR_LEN;
         size_t m = pp.LOG_VECTOR_LEN;
-        LinBit::PP linbit_pp = LinBit::Setup(pp.vec_g, pp.h, n);
+        //LinBit::PP linbit_pp = LinBit::Setup(pp.vec_g, pp.h, n);
+        LinBit::PP linbit_pp = LinBit::Setup(n);
+        linbit_pp.vec_g = pp.vec_g;
+        linbit_pp.h = pp.h;
         LinBit::Instance linbit_instance;
         linbit_instance.P = instance.B;
 
