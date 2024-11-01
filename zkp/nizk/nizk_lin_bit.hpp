@@ -41,7 +41,7 @@ struct Proof
     ECPoint A;
     ECPoint C;
     ECPoint D;
-    std::vector<BigInt> vec_a;
+    std::vector<BigInt> vec_a; // need to be modified later
     std::vector<BigInt> vec_f;
     BigInt zA;
     BigInt zC;
@@ -55,6 +55,8 @@ PP Setup(size_t N)
     PP pp; 
     pp.vec_g= GenRandomECPointVector(N);
     pp.h = GenRandomECPoint();
+    // pp.vec_g = vec_g;
+    // pp.h = h;
 
     return pp; 
 }

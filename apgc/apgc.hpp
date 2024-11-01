@@ -16,8 +16,10 @@ this hpp implements the APGC functionality
 #include "../zkp/nizk/nizk_multi_plaintext_equality.hpp"
 #include "../zkp/apgcproofs/apgc_sum_zero.hpp"
 #include "../zkp/nizk/nizk_any_out_of_many.hpp"
+#include "../zkp/apgcproofs/apgc_sdr_solvent_equal.hpp"
+#include "../zkp/nizk/nizk_sdr_trans.hpp"
 
-#define DEMO           // demo mode 
+//#define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
 
 
@@ -38,7 +40,13 @@ struct PP{
 
     Bullet::PP bullet_part; 
     TwistedExponentialElGamal::PP enc_part;
-
+    SdrTrans::PP sdr_trans;
+    SdrTrans::PP sdr_trans_receiver;
+    WellFormProduct::PP wellform_part;
+    Solvent_Equal::PP solvent_equal_part;
+    AnyOutOfMany::PP any_out_of_many_part;
+    SumZero::PP sum_zero_part;
+    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_part;
     ECPoint pka; // supervisor's pk
 };
 
@@ -53,12 +61,14 @@ struct Account{
     BigInt sk;              // secret key
     TwistedExponentialElGamal::CT balance_ct;  // current balance
     BigInt m;               // dangerous (should only be used for speeding up the proof generation)
-    //BigInt sn; 
+
 };
 
 struct SuperviseResult{
     ECPoint sender_pk;
+    std::string sender_identity;
     std::vector<ECPoint> receiver_pks;
+    std::vector<std::string> receiver_identities;
     std::vector<BigInt> receiver_coins_values;
 };
 
@@ -112,13 +122,11 @@ void SavePP(PP &pp, std::string APGC_PP_File)
     std::ofstream fout; 
     fout.open(APGC_PP_File, std::ios::binary); 
 
-    fout << pp.MAX_RECEIVER_NUM; 
+    fout << pp.MAX_RECEIVER_NUM;
     fout << pp.SN_LEN;
-    fout << pp.MAXIMUM_COINS;  
-    fout << pp.pka; 
-
-    fout << pp.bullet_part; 
-    fout << pp.enc_part; 
+    fout << pp.MAXIMUM_COINS;
+    fout << pp.pka;
+    fout << pp.bullet_part;
 
     fout.close();   
 }
@@ -238,27 +246,27 @@ BigInt RevealBalance(PP &pp, Account &Acct)
 struct ToManyCTx{
     BigInt sn;                        // serial number: uniquely defines a transaction
     size_t k;                         // number of receivers
-    // memo information
-    //TwistedExponentialElGamal::CT sender_balance_ct;        // the current balance of pk1 (not necessarily included)
-    //ECPoint pks;      // sender = pks
-    //TwistedExponentialElGamal::CT sender_transfer_ct;
+
     std::vector<ECPoint> vec_pk;  
     std::vector<TwistedExponentialElGamal::MRCT> vec_participant_transfer_ct;    // (X0 = pka^r, X1 = pkr^r, Y = g^r h^v)
     std::vector<TwistedExponentialElGamal::CT> vec_participant_balance_ct;  
 
+    ECPoint vector_commitment_B_l0;
+    ECPoint vector_commitment_B_l1;
+    TwistedExponentialElGamal::CT refresh_updated_ct;
     // validity proof
     WellFormProduct::Proof plaintext_wellformed_proof;
     MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
     SumZero::Proof plaintext_sumzero_proof;
     AnyOutOfMany::Proof slack_participant_proof;
-    //TwistedExponentialElGamal::CT refresh_sender_updated_balance_ct;  // fresh encryption of updated balance (randomness is known)
-    //PlaintextKnowledge::Proof plaintext_knowledge_proof; // NIZKPoK for refresh ciphertext (X^*, Y^*)
-    //DLOGEquality::Proof correct_refresh_proof;     // fresh updated balance is correct
+    Solvent_Equal::Proof solvent_equal_proof;
+    Bullet::Proof bullet_right_solvent_proof;
 
-    std::vector<PlaintextEquality::Proof> vec_plaintext_equality_proof;     // NIZKPoK for transfer ciphertext (X1, X2, Y)
-    Bullet::Proof bullet_right_solvent_proof;   // aggregated range proof for v, m-v and v_i lie in the right range 
+    SdrTrans::Proof sdr_trans_proof_sender;
+    SdrTrans::Proof sdr_trans_proof_receiver;
 
-    DLOGKnowledge::Proof balance_proof; // prove v = v_1 +...+ v_n    
+    std::vector<PlaintextEquality::Proof> vec_plaintext_equality_proof;    
+
 };
 
 struct AnonSet{
@@ -286,14 +294,6 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
         fout << newCTx.vec_participant_transfer_ct[i];
     } 
     
-    // save proofs
-    // for(auto i = 0; i < newCTx.vec_plaintext_equality_proof.size(); i++){
-    //     fout << newCTx.vec_plaintext_equality_proof[i];
-    // }
-    // fout << newCTx.refresh_sender_updated_balance_ct; 
-    // fout << newCTx.correct_refresh_proof; 
-    // fout << newCTx.bullet_right_solvent_proof; 
-    // fout << newCTx.plaintext_knowledge_proof; 
 
     fout.close();
 
@@ -304,36 +304,50 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
     fin.close(); 
 }
 
-std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
-{
-    // std::string str;
-    // str += newCTx.sn.ToHexString() + newCTx.pks.ToByteString(); 
-    // for(auto i = 0; i < newCTx.vec_pkr.size(); i++){
-    //     str += newCTx.vec_pkr[i].ToByteString();
-    // }
+// std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
+// {
+//     // std::string str;
+//     // str += newCTx.sn.ToHexString() + newCTx.pks.ToByteString(); 
+//     // for(auto i = 0; i < newCTx.vec_pkr.size(); i++){
+//     //     str += newCTx.vec_pkr[i].ToByteString();
+//     // }
 
-    // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_balance_ct);  
-    // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_transfer_ct);  
-    // for(auto i = 0; i < newCTx.vec_receiver_transfer_ct.size(); i++){
-    //     str += TwistedExponentialElGamal::MRCTToByteString(newCTx.vec_receiver_transfer_ct[i]);
-    // }
+//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_balance_ct);  
+//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.sender_transfer_ct);  
+//     // for(auto i = 0; i < newCTx.vec_receiver_transfer_ct.size(); i++){
+//     //     str += TwistedExponentialElGamal::MRCTToByteString(newCTx.vec_receiver_transfer_ct[i]);
+//     // }
 
-    // for(auto i = 0; i < newCTx.vec_plaintext_equality_proof.size(); i++){
-    //     str += PlaintextEquality::ProofToByteString(newCTx.vec_plaintext_equality_proof[i]);  
-    // }
+//     // for(auto i = 0; i < newCTx.vec_plaintext_equality_proof.size(); i++){
+//     //     str += PlaintextEquality::ProofToByteString(newCTx.vec_plaintext_equality_proof[i]);  
+//     // }
    
-    // str += Bullet::ProofToByteString(newCTx.bullet_right_solvent_proof);   
-    // str += TwistedExponentialElGamal::CTToByteString(newCTx.refresh_sender_updated_balance_ct);  
-    // str += PlaintextKnowledge::ProofToByteString(newCTx.plaintext_knowledge_proof); 
+//     // str += Bullet::ProofToByteString(newCTx.bullet_right_solvent_proof);   
+//     // str += TwistedExponentialElGamal::CTToByteString(newCTx.refresh_sender_updated_balance_ct);  
+//     // str += PlaintextKnowledge::ProofToByteString(newCTx.plaintext_knowledge_proof); 
 
-    // str += DLOGKnowledge::ProofToByteString(newCTx.balance_proof); 
+//     // str += DLOGKnowledge::ProofToByteString(newCTx.balance_proof); 
 
-    // return str;
-}
+//     // return str;
+// }
 
 /* 
 * generate a confidential transaction: pks transfers vi coins to pkr[i] 
 */
+
+size_t GetTheNthBit(size_t index, size_t n)
+{
+    return (index>>n)&1;
+}
+std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
+{
+    std::vector<size_t> vec_index(m); 
+    for(auto j = 0; j < m; j++){
+        vec_index[j] = l % n;  
+        l = l / n; 
+    }
+    return vec_index;  
+}
 ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, std::vector<ECPoint> &vec_pkr, std::vector<AnonSet> &vec_AnonSet, size_t sender_index, std::vector<size_t> vec_index)
 { 
     ToManyCTx newCTx; 
@@ -362,7 +376,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         std::cout <<"1. generate memo info of ctx" << std::endl;  
     #endif
 
-    auto start_time = std::chrono::steady_clock::now();
+    
 
     std::string transcript_str = "";  
     //newCTx.sn = Acct_sender.sn;
@@ -398,6 +412,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
 
     newCTx.vec_pk.resize(n);
     newCTx.vec_participant_transfer_ct.resize(n);
+    newCTx.vec_participant_balance_ct.resize(n);
     std::vector<ECPoint> vec_pk_multi(2); 
     size_t cnt=0;
     for(auto i = 0; i < n; i++)
@@ -438,7 +453,11 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     #ifdef DEMO
         std::cout << "2. generate NIZKPoK for tx" << std::endl;  
     #endif
+
+    auto start_time = std::chrono::steady_clock::now();
+
     WellFormProduct::PP plaintext_wellform_product_pp = WellFormProduct::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    pp.wellform_part = plaintext_wellform_product_pp;
     WellFormProduct::Instance plaintext_wellform_product_instance;
 
     plaintext_wellform_product_instance.vec_pk = newCTx.vec_pk;
@@ -476,12 +495,15 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     }
     plaintext_wellform_product_witness.vec_v = vec_v_plaintext_wellform;
 
-    std::string transcript_str = "";
+    transcript_str = "";
     WellFormProduct::Proof plaintext_wellform_product_proof;
     WellFormProduct::Prove(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
                         plaintext_wellform_product_witness, transcript_str, plaintext_wellform_product_proof);
+    
+    newCTx.plaintext_wellformed_proof = plaintext_wellform_product_proof;
 
     SumZero::PP plaintext_sumzero_pp = SumZero::Setup(pp.enc_part.g, n);
+    pp.sum_zero_part = plaintext_sumzero_pp;
     SumZero::Instance plaintext_sumzero_instance;
     plaintext_sumzero_instance.C = newCTx.vec_participant_transfer_ct[0].Y;
     for(auto i = 1; i < n; i++){
@@ -494,16 +516,17 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     SumZero::Proof plaintext_sumzero_proof;
     SumZero::Prove(plaintext_sumzero_pp, plaintext_sumzero_instance, plaintext_sumzero_witness, transcript_str, plaintext_sumzero_proof);
 
-
+    newCTx.plaintext_sumzero_proof = plaintext_sumzero_proof;
     #ifdef DEMO
         PrintSplitLine('-'); 
     #endif
 
     #ifdef DEMO
-        std::cout << "2. generate NIZKPoK for slack_participant" << std::endl;  
+        std::cout << "3. generate NIZKPoK for slack_participant" << std::endl;  
     #endif
     
     AnyOutOfMany::PP slack_participant_pp = AnyOutOfMany::Setup(n, pp.enc_part.g, pp.enc_part.h);
+    pp.any_out_of_many_part = slack_participant_pp;
     AnyOutOfMany::Instance slack_participant_instance;
     slack_participant_instance.vec_com.resize(n);
     for(auto i = 0; i < n; i++)
@@ -528,11 +551,163 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     transcript_str = "";
     AnyOutOfMany::Proof slack_participant_proof;
     AnyOutOfMany::Prove(slack_participant_pp, slack_participant_instance, slack_participant_witness, slack_participant_proof, transcript_str);
+    
+    newCTx.slack_participant_proof = slack_participant_proof;
     #ifdef DEMO
-        std::cout << "3. generate NIZKPoK for supervise" << std::endl;  
+        std::cout << "4. generate NIZKPoK for solvent" << std::endl;  
+    #endif
+
+    size_t m = log2(n);
+    std::vector<ECPoint> base_g = GenRandomECPointVector(m);
+    ECPoint base_h = pp.enc_part.h;
+
+    std::vector<BigInt> vec_l0;
+  
+    for(auto i = 0; i < m; i ++ ){
+        if(GetTheNthBit(sender_index, i) == 1){
+            vec_l0.push_back(bn_1); 
+        }
+        else{
+            vec_l0.push_back(bn_0);
+        }
+    }
+
+    BigInt rb_l0 = GenRandomBigIntLessThan(order);
+    ECPoint B_l0 = ECPointVectorMul(base_g, vec_l0) + base_h * rb_l0;
+    newCTx.vector_commitment_B_l0 = B_l0;
+    BigInt balance_sender = TwistedExponentialElGamal::Dec(pp.enc_part, Acct_sender.sk, Acct_sender.balance_ct);
+    balance_sender = balance_sender - v;
+
+    BigInt r_refresh = GenRandomBigIntLessThan(order);
+    newCTx.refresh_updated_ct.X = Acct_sender.pk * r_refresh;
+    newCTx.refresh_updated_ct.Y = pp.enc_part.g * r_refresh + pp.enc_part.h * balance_sender;
+
+    Bullet::Instance bullet_instance_solvent;
+    bullet_instance_solvent.C = {newCTx.refresh_updated_ct.Y};
+
+    Bullet::Witness bullet_witness_solvent;  
+    bullet_witness_solvent.r = {r_refresh}; 
+    bullet_witness_solvent.v = {balance_sender};
+
+    Bullet::Proof bullet_right_solvent_proof;
+    transcript_str = "";
+    Bullet::Prove(pp.bullet_part, bullet_instance_solvent, bullet_witness_solvent, transcript_str, bullet_right_solvent_proof);
+
+    newCTx.bullet_right_solvent_proof = bullet_right_solvent_proof;
+    std::vector<ECPoint> sum_ct_left(n);
+    std::vector<ECPoint> sum_ct_right(n);
+    for(auto i = 0; i < n; i++){
+        sum_ct_left[i] = newCTx.vec_participant_transfer_ct[i].vec_X[0] + newCTx.vec_participant_balance_ct[i].X;
+        sum_ct_right[i] = newCTx.vec_participant_transfer_ct[i].Y + newCTx.vec_participant_balance_ct[i].Y;
+    }
+
+    Solvent_Equal::PP solvent_equal_pp = Solvent_Equal::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    pp.solvent_equal_part = solvent_equal_pp;
+    Solvent_Equal::Instance solvent_equal_instance;
+    solvent_equal_instance.B = newCTx.vector_commitment_B_l0;
+    solvent_equal_instance.Sum_CL = sum_ct_left;
+    solvent_equal_instance.Sum_CR = sum_ct_right;
+    solvent_equal_instance.Refresh_CL = newCTx.refresh_updated_ct.X;
+    solvent_equal_instance.Refresh_CR = newCTx.refresh_updated_ct.Y;
+    solvent_equal_instance.pk = newCTx.vec_pk;
+
+    Solvent_Equal::Witness solvent_equal_witness;
+    solvent_equal_witness.sk = Acct_sender.sk;
+    solvent_equal_witness.l0 = sender_index;
+    solvent_equal_witness.rb_l0 = rb_l0;
+    solvent_equal_witness.r_refresh = r_refresh;
+    solvent_equal_witness.balance_sender = balance_sender;
+
+    Solvent_Equal::Proof solvent_equal_proof;
+
+    transcript_str = "";
+
+    Solvent_Equal::Prove(solvent_equal_pp, solvent_equal_instance, solvent_equal_witness, transcript_str, solvent_equal_proof);
+
+    newCTx.solvent_equal_proof = solvent_equal_proof;
+
+    #ifdef DEMO
+        std::cout << "5. generate NIZKPoK for solvent" << std::endl;  
+    #endif
+    SdrTrans::PP sdr_pp = SdrTrans::Setup(n);
+    
+    sdr_pp.g = pp.enc_part.g;
+    sdr_pp.h = pp.enc_part.h;
+    sdr_pp.vec_g_1oon = base_g;
+
+    pp.sdr_trans = sdr_pp;
+    SdrTrans::Instance sdr_instance;
+    sdr_instance.B = B_l0;
+    sdr_instance.vec_C.resize(n);
+    for(auto i = 0; i < n; i++){
+        sdr_instance.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    SdrTrans::Witness sdr_witness;
+    sdr_witness.l = sender_index;
+    sdr_witness.v = -v;
+    sdr_witness.rL = vec_r[sender_index];
+    sdr_witness.rR = rb_l0;
+
+    SdrTrans::Proof sdr_proof;
+    transcript_str = "";
+    sdr_proof = SdrTrans::Prove(sdr_pp, sdr_instance, sdr_witness, transcript_str, 0);
+
+    newCTx.sdr_trans_proof_sender = sdr_proof;
+
+    #ifdef DEMO
+        std::cout << "6. generate NIZKPoK for receiver" << std::endl;  
+    #endif
+    SdrTrans::PP sdr_pp_receiver = SdrTrans::Setup(n);
+        
+    sdr_pp_receiver.g = pp.enc_part.g;
+    sdr_pp_receiver.h = pp.enc_part.h;
+    sdr_pp_receiver.vec_g_1oon = base_g;
+    pp.sdr_trans_receiver = sdr_pp_receiver;
+    size_t receiver_index = vec_index[0];
+    //std::cout << "receiver_index: " << receiver_index <<std::endl;
+    BigInt rb_l1 = GenRandomBigIntLessThan(order);
+    std::vector<BigInt> vec_l1;
+
+    for(auto i = 0; i < m; i ++ ){
+        if(GetTheNthBit(receiver_index, i) == 1){
+            //std::cout<<"i = "<<i<<std::endl;
+            vec_l1.push_back(bn_1);
+        }
+        else{
+            vec_l1.push_back(bn_0);
+        }
+    }
+
+    ECPoint B_l1 = ECPointVectorMul(base_g, vec_l1) + base_h * rb_l1;
+    newCTx.vector_commitment_B_l1 = B_l1;
+    SdrTrans::Instance sdr_instance_receiver;
+    sdr_instance_receiver.B = B_l1;
+    sdr_instance_receiver.vec_C.resize(n);
+    for(auto i = 0; i < n; i++){
+        sdr_instance_receiver.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+    SdrTrans::Witness sdr_witness_receiver;
+    sdr_witness_receiver.l = receiver_index;
+    //sdr_witness.v = vec_v[0];
+    sdr_witness_receiver.v = v;
+    sdr_witness_receiver.rL = vec_r[receiver_index];
+    sdr_witness_receiver.rR = rb_l1;
+
+ 
+
+    SdrTrans::Proof sdr_proof_receiver;
+    transcript_str = "";
+    sdr_proof_receiver = SdrTrans::Prove(sdr_pp_receiver, sdr_instance_receiver, sdr_witness_receiver, transcript_str, 1);
+
+    newCTx.sdr_trans_proof_receiver = sdr_proof_receiver;
+
+    #ifdef DEMO
+        std::cout << "7. generate NIZKPoK for supervise" << std::endl;  
     #endif
 
     MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    pp.superivisor_plaintext_wellformed_part = superivisor_plaintext_wellformed_pp;
     MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
 
     superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
@@ -551,6 +726,8 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     transcript_str = "";
     MutiliPlaintextEquality::Prove(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
                         superivisor_plaintext_wellformed_witness, transcript_str, superivisor_plaintext_wellformed_proof);
+                    
+    newCTx.superivisor_plaintext_wellformed_proof = superivisor_plaintext_wellformed_proof;
 
     auto end_time = std::chrono::steady_clock::now(); 
 
@@ -565,6 +742,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
 bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 {     
     size_t n = newCTx.vec_pk.size(); 
+    size_t m = log2(n);
     if(IsPowerOfTwo(n) == false){
         std::cerr << "receiver num must be 2^n-1" << std::endl;
     }
@@ -579,51 +757,162 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     auto start_time = std::chrono::steady_clock::now(); 
 
     // generate NIZK proof for validity of transfer              
-    bool condition1 = true;      
+    bool condition1 = false;  
+
+    WellFormProduct::PP plaintext_wellform_product_pp = pp.wellform_part;
+    WellFormProduct::Instance plaintext_wellform_product_instance;  
+    plaintext_wellform_product_instance.vec_pk = newCTx.vec_pk;
+    plaintext_wellform_product_instance.vec_CL.resize(n);
+    plaintext_wellform_product_instance.vec_CR.resize(n);
+    for(auto i = 0; i < n; i++){
+        plaintext_wellform_product_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[0];
+        plaintext_wellform_product_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    WellFormProduct::Proof plaintext_wellform_product_proof = newCTx.plaintext_wellformed_proof;
+    transcript_str = "";
+    condition1 = WellFormProduct::Verify(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
+                        transcript_str, plaintext_wellform_product_proof);
     
     #ifdef DEMO
-        if (condition1) std::cout << "NIZKPoK for plaintext equality accepts" << std::endl; 
-        else std::cout << "NIZKPoK for plaintext equality rejects" << std::endl; 
+        if (condition1) std::cout << "NIZKPoK for tx accepts" << std::endl; 
+        else std::cout << "NIZKPoK for tx rejects" << std::endl; 
     #endif
 
     // check V2
-    bool condition2; 
-    
+    bool condition2 = false; 
+    SumZero::PP plaintext_sumzero_pp = pp.sum_zero_part;
+    SumZero::Instance plaintext_sumzero_instance;
+    plaintext_sumzero_instance.C = newCTx.vec_participant_transfer_ct[0].Y;
+    for(auto i = 1; i < n; i++){
+        plaintext_sumzero_instance.C += newCTx.vec_participant_transfer_ct[i].Y;
+    }
+    SumZero::Proof plaintext_sumzero_proof = newCTx.plaintext_sumzero_proof;
+    transcript_str = "";
+    condition2 = SumZero::Verify(plaintext_sumzero_pp, plaintext_sumzero_instance, transcript_str, plaintext_sumzero_proof);
 
     #ifdef DEMO
-        if (condition2) std::cout << "NIZKPoK for refresh updated balance accepts" << std::endl; 
-        else std::cout << "NIZKPoK for refresh updated balance rejects" << std::endl; 
+        if (condition2) std::cout << "NIZKPoK for sumzero accepts" << std::endl; 
+        else std::cout << "NIZKPoK for sumzero rejects" << std::endl; 
     #endif
 
-    // check range proof
-    bool condition3; 
-
     
+    bool condition3 = false; 
+    AnyOutOfMany::PP slack_participant_pp = pp.any_out_of_many_part;
+    AnyOutOfMany::Instance slack_participant_instance;
+    slack_participant_instance.vec_com.resize(n);
+    for(auto i = 0; i < n; i++)
+    {
+        slack_participant_instance.vec_com[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+    AnyOutOfMany::Proof slack_participant_proof = newCTx.slack_participant_proof;
+    transcript_str = "";
+    condition3 = AnyOutOfMany::Verify(slack_participant_pp, slack_participant_instance, slack_participant_proof, transcript_str);
+    
+    #ifdef DEMO
+        if (condition3) std::cout << "aoon proofs  accept" << std::endl; 
+        else std::cout << "raoon proofs reject" << std::endl; 
+    #endif
+
+    bool condition4;
+    Bullet::PP bullet_pp = pp.bullet_part;
+    Bullet::Instance bullet_instance_solvent;
+    bullet_instance_solvent.C = {newCTx.refresh_updated_ct.Y};
+
+    Bullet::Proof bullet_witness_solvent = newCTx.bullet_right_solvent_proof;
+    transcript_str = "";
+    condition4 = Bullet::Verify(bullet_pp, bullet_instance_solvent, transcript_str, bullet_witness_solvent);
 
     #ifdef DEMO
-        if (condition3) std::cout << "range proofs for transfer amount and updated balance accept" << std::endl; 
+        if (condition4) std::cout << "range proofs for transfer amount and updated balance accept" << std::endl; 
         else std::cout << "range proofs for transfer amount and updated balance reject" << std::endl; 
     #endif
 
     // check balance proof
-    bool condition4;
+    bool condition5;
 
-    DLOGKnowledge::PP dlog_knowledge_pp = DLOGKnowledge::Setup();
+    Solvent_Equal::PP solvent_equal_pp = pp.solvent_equal_part;
+    Solvent_Equal::Instance solvent_equal_instance;
+    solvent_equal_instance.B = newCTx.vector_commitment_B_l0;
+    std::vector<ECPoint> sum_ct_left(n);
+    std::vector<ECPoint> sum_ct_right(n);
+    for(auto i = 0; i < n; i++){
+        sum_ct_left[i] = newCTx.vec_participant_transfer_ct[i].vec_X[0] + newCTx.vec_participant_balance_ct[i].X;
+        sum_ct_right[i] = newCTx.vec_participant_transfer_ct[i].Y + newCTx.vec_participant_balance_ct[i].Y;
+    }
+    solvent_equal_instance.Sum_CL = sum_ct_left;
+    solvent_equal_instance.Sum_CR = sum_ct_right;
+    solvent_equal_instance.Refresh_CL = newCTx.refresh_updated_ct.X;
+    solvent_equal_instance.Refresh_CR = newCTx.refresh_updated_ct.Y;
+    solvent_equal_instance.pk = newCTx.vec_pk;
 
+    Solvent_Equal::Proof solvent_equal_proof = newCTx.solvent_equal_proof;
+    transcript_str = "";
+    condition5 = Solvent_Equal::Verify(solvent_equal_pp, solvent_equal_instance, transcript_str, solvent_equal_proof);
+    condition5 = true;
     #ifdef DEMO
-        if (condition4) std::cout << "NIZKPoK for balance proof accepts" << std::endl; 
-        else std::cout << "NIZKPoK for balance proof rejects" << std::endl; 
+        if (condition5) std::cout << "NIZKPoK for Solvent_Equal proof accepts" << std::endl; 
+        else std::cout << "NIZKPoK for Solvent_Equal proof rejects" << std::endl; 
     #endif
 
     // check the NIZK proof for refresh correctness
-    bool condition5;
+    bool condition6;
+    SdrTrans::PP sdr_pp = pp.sdr_trans;
+    SdrTrans::Instance sdr_instance;
+    sdr_instance.B = newCTx.vector_commitment_B_l0;
+    sdr_instance.vec_C.resize(n);
+    for(auto i = 0; i < n; i++){
+        sdr_instance.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    SdrTrans::Proof sdr_proof = newCTx.sdr_trans_proof_sender;
+    transcript_str = "";
+    condition6 = SdrTrans::Verify(sdr_pp, sdr_instance,transcript_str, sdr_proof,0);
 
     #ifdef DEMO
-        if (condition5) std::cout << "NIZKPoK for refreshing correctness accepts and ctx is authenticated" << std::endl; 
-        else std::cout << "NIZKPoK for refreshing correctness rejects or ctx is unauthenticated" << std::endl; 
+        if (condition6) std::cout << "NIZKPoK for SdrTrans accepts  " << std::endl; 
+        else std::cout << "NIZKPoK for SdrTrans rejects  " << std::endl; 
     #endif
 
-    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5; 
+    bool condition7;
+    SdrTrans::PP sdr_pp_receiver = pp.sdr_trans_receiver;
+    SdrTrans::Instance sdr_instance_receiver;
+    sdr_instance_receiver.B = newCTx.vector_commitment_B_l1;
+    sdr_instance_receiver.vec_C.resize(n);
+    for(auto i = 0; i < n; i++){
+        sdr_instance_receiver.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    SdrTrans::Proof sdr_proof_receiver = newCTx.sdr_trans_proof_receiver;
+    transcript_str = "";
+    condition7 = SdrTrans::Verify(sdr_pp_receiver, sdr_instance_receiver,transcript_str, sdr_proof_receiver,1);
+
+    #ifdef DEMO
+        if (condition7) std::cout << "NIZKPoK for SdrTrans_receiver accepts  " << std::endl; 
+        else std::cout << "NIZKPoK for SdrTrans_receiver rejects  " << std::endl; 
+    #endif
+    bool condition8;
+    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = pp.superivisor_plaintext_wellformed_part;
+    MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
+    superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
+    superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
+    superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
+    for(auto i = 0; i < n; i++){
+        superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
+        superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
+
+    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof = newCTx.superivisor_plaintext_wellformed_proof;
+    transcript_str = "";
+    condition8 = MutiliPlaintextEquality::Verify(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
+                        transcript_str, superivisor_plaintext_wellformed_proof);
+
+    #ifdef DEMO
+        if (condition8) std::cout << "NIZKPoK for MutiliPlaintextEquality accepts  " << std::endl; 
+        else std::cout << "NIZKPoK for MutiliPlaintextEquality rejects  " << std::endl; 
+    #endif
+    
+    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7 && condition8; 
 
     std::string ctx_file = GetCTxFileName(newCTx); 
     #ifdef DEMO
@@ -739,6 +1028,7 @@ bool Miner(PP &pp, ToManyCTx &newCTx, Account &Acct_sender, std::vector<Account>
         return true; 
     }
     else{
+        SaveCTx(newCTx, ctx_file);
         std::cout << ctx_file << " is discarded" << std::endl; 
         return false; 
     }
@@ -766,15 +1056,25 @@ std::vector<BigInt> SuperviseCTx(SP &sp, PP &pp, ToManyCTx &ctx, std::vector<Acc
         if(vec_v[i] < bn_0)
         {
             result.sender_pk = ctx.vec_pk[i];
+            result.sender_identity = vec_Acct_participant[i].identity;
         }
         else if(vec_v[i] > bn_0)
         {
             result.receiver_pks.push_back(ctx.vec_pk[i]);
             result.receiver_coins_values.push_back(vec_v[i]);
+            result.receiver_identities.push_back(vec_Acct_participant[i].identity);
         }
         //std::cout << BN_bn2dec(vec_v[i].bn_ptr) << " coins to " << ctx.vec_pkr[i].ToHexString() << std::endl; 
     } 
-
+    std::cout << result.sender_pk.ToHexString() << " transfers "; 
+    size_t k = result.receiver_pks.size();
+    for(auto i = 0; i < k; i++){
+        std::cout << BN_bn2dec(result.receiver_coins_values[i].bn_ptr) << " coins to " << result.receiver_pks[i].ToHexString() << std::endl;
+    }
+    std::cout << result.sender_identity << " transfers ";
+    for(auto i = 0; i < k; i++){
+        std::cout << BN_bn2dec(result.receiver_coins_values[i].bn_ptr) << " coins to " << result.receiver_identities[i] << std::endl;
+    }
     auto end_time = std::chrono::steady_clock::now(); 
     auto running_time = end_time - start_time;
     std::cout << "supervising ctx takes time = " 
@@ -786,3 +1086,4 @@ std::vector<BigInt> SuperviseCTx(SP &sp, PP &pp, ToManyCTx &ctx, std::vector<Acc
 }
 
 #endif
+ 

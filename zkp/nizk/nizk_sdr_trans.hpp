@@ -324,9 +324,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     BigInt x0m_inv = exp_x[m].ModInverse(order);  
 
     //right part
-    ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order);
+
+    ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order) ;
     for(auto d=1;d<m;d++){
-        right += proof.vec_C[d] * (bn_0 - exp_x[d] + order);
+        right += proof.vec_C[d] * (bn_0 - exp_x[d] + order) ;
     }
     
     //left part
@@ -461,6 +462,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
 
 
+    // std::cout<<std::boolalpha<<"Condition 1 (1oon) = "<<vec_condition[0]<<std::endl;
+    // std::cout<<std::boolalpha<<"Condition 2 (range v) = "<<vec_condition[1]<<std::endl;
+    // std::cout<<std::boolalpha<<"Condition 3 (range v-1) = "<<vec_condition[2]<<std::endl;
+
     bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2];
 
 
@@ -483,6 +488,8 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 }
 
 #endif
+
+
 
 
 

@@ -6,7 +6,7 @@ size_t getrandom(size_t n)
     srand(time(0));
     return rand() % n;
 }
-void Build_APGC_Test_Enviroment(size_t number)
+void Build_APGC_Test_Enviroment(APGC::PP &pp, size_t number)
 {
     PrintSplitLine('-'); 
     std::cout << "build test enviroment for APGC >>>" << std::endl; 
@@ -18,7 +18,7 @@ void Build_APGC_Test_Enviroment(size_t number)
     size_t MAX_RECEIVER_NUM = 7;  
 
     APGC::SP sp;
-    APGC::PP pp;
+    //APGC::PP pp;
 
     std::tie(pp, sp) = APGC::Setup(LOG_MAXIMUM_COINS, MAX_RECEIVER_NUM, SN_LEN); 
 
@@ -119,6 +119,15 @@ void Build_APGC_Test_Enviroment(size_t number)
     std::string Paul_Acct_FileName = "Paul.account";
     APGC::SaveAccount(Acct_Paul, Paul_Acct_FileName);
 
+    for(size_t i = 16; i < number; i++)
+    {
+        BigInt balance = BigInt(getrandom(32));
+        std::string identity = "Anon" + std::to_string(i);
+        APGC::Account Acct_Anon = APGC::CreateAccount(pp, identity, balance); 
+        std::string Anon_Acct_FileName = identity + ".account"; 
+        APGC::SaveAccount(Acct_Anon, Anon_Acct_FileName); 
+    }
+
     // BigInt Tax_balance = bn_0; 
     // APGC::Account Acct_Tax = APGC::CreateAccount(pp, "Tax", Tax_balance); 
     // std::string Tax_Acct_FileName = "Tax.account"; 
@@ -130,15 +139,17 @@ void Build_APGC_Test_Enviroment(size_t number)
 
 void Emulate_APGC_System(size_t number, size_t kreceiver)
 {
+    APGC::PP pp;
+    Build_APGC_Test_Enviroment(pp, number); 
     size_t RANGE_LEN = 32; // set the range to be [0, 2^32-1]
     size_t AGG_NUM = 2; 
     
     APGC::SP sp;  
     APGC::FetchSP(sp, "APGC.sp"); 
 
-    APGC::PP pp;  
-    APGC::FetchPP(pp, "APGC.pp"); 
-    APGC::PrintPP(pp); 
+    // APGC::PP pp;  
+    // APGC::FetchPP(pp, "APGC.pp"); 
+    // APGC::PrintPP(pp); 
 
     APGC::Account Acct_Alice;  
     APGC::FetchAccount(Acct_Alice, "Alice.account"); 
@@ -151,10 +162,6 @@ void Emulate_APGC_System(size_t number, size_t kreceiver)
     APGC::Account Acct_Carl;  
     APGC::FetchAccount(Acct_Carl, "Carl.account"); 
     APGC::PrintAccount(Acct_Carl); 
-
-    APGC::Account Acct_Tax;  
-    APGC::FetchAccount(Acct_Tax, "Tax.account"); 
-    APGC::PrintAccount(Acct_Tax); 
 
     APGC::Account Acct_David;
     APGC::FetchAccount(Acct_David, "David.account");
@@ -208,10 +215,26 @@ void Emulate_APGC_System(size_t number, size_t kreceiver)
     APGC::FetchAccount(Acct_Paul, "Paul.account");
     APGC::PrintAccount(Acct_Paul);
 
+    // for(size_t i = 16; i < number; i++)
+    // {
+    //     std::string identity = "Anon" + std::to_string(i);
+    //     APGC::Account Acct_Anon;
+    //     APGC::FetchAccount(Acct_Anon, identity + ".account");
+    //     APGC::PrintAccount(Acct_Anon);
+    // }
+
     std::vector<APGC::Account> vec_Acct= {Acct_Alice, Acct_Bob, Acct_Carl, Acct_David, 
                                                     Acct_Eve, Acct_Frank, Acct_Grace, Acct_Henry, 
                                                     Acct_Ida, Acct_Jack, Acct_Kate, Acct_Leo, Acct_Mary, 
                                                     Acct_Nick, Acct_Olivia, Acct_Paul};
+
+    for(size_t i = 16; i < number; i++)
+    {
+        std::string identity = "Anon" + std::to_string(i);
+        APGC::Account Acct_Anon;
+        APGC::FetchAccount(Acct_Anon, identity + ".account");
+        vec_Acct.push_back(Acct_Anon);
+    }
 
     std::cout << "Alice is going to transfer >>>>>>>>" << std::endl;
     
@@ -252,7 +275,7 @@ void Emulate_APGC_System(size_t number, size_t kreceiver)
         vec_index[i] = receiver_index;
     }
     std::vector<ECPoint> vec_pkr(kreceiver);
-    std::vector<APGC::Account> vec_Acct_participant(kreceiver);
+    std::vector<APGC::Account> vec_Acct_participant(number);
     for(size_t i = 0; i < kreceiver; i++)
     {
         vec_pkr[i] = vec_Acct[vec_index[i]].pk;
@@ -293,10 +316,9 @@ void Emulate_APGC_System(size_t number, size_t kreceiver)
 int main()
 {
     CRYPTO_Initialize();   
-    size_t number = 8;
-    size_t kreceiver = 3;
+    size_t number = 64;
+    size_t kreceiver = 1;
 
-    Build_APGC_Test_Enviroment(number); 
     Emulate_APGC_System(number, kreceiver);
 
     CRYPTO_Finalize(); 

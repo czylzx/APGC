@@ -14,7 +14,7 @@
 */
 
 inline int curve_id = NID_X9_62_prime256v1;  
-//#define ECPOINT_COMPRESSED
+#define ECPOINT_COMPRESSED
 #define ENABLE_X25519_ACCELERATION
 
 inline EC_GROUP *group;

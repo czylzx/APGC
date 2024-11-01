@@ -40,8 +40,12 @@ void test_nizk_LinBit(bool flag)
     std::cout << "begin the test of lin bit proof >>>" << std::endl; 
     
     size_t N_max = 8;
-
+    ECPoint h = GenRandomGenerator();
+    std::vector<ECPoint> vec_g = GenRandomECPointVector(N_max);
+    //LinBit::PP pp = LinBit::Setup(vec_g, h, N_max);
     LinBit::PP pp = LinBit::Setup(N_max);
+    pp.vec_g = vec_g;
+    pp.h = h;
     LinBit::Instance instance; 
     LinBit::Witness witness;  
     std::string transcript_str;
