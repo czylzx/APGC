@@ -15,6 +15,17 @@ namespace LogBit{
 using Serialization::operator<<; 
 using Serialization::operator>>; 
 
+std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
+{
+    std::vector<size_t> vec_index(m); 
+    for(auto j = 0; j < m; j++){
+        vec_index[j] = l % n;  
+        l = l / n; 
+    }
+    return vec_index;  
+} 
+
+
 /* generate a^n = (a^0, a^1, a^2, ..., a^{n-1}) */ 
 std::vector<BigInt> GenBigIntPowerVector(size_t LEN, const BigInt &a)
 {
@@ -32,6 +43,8 @@ struct PP
     std::vector<ECPoint> vec_g;
     std::vector<ECPoint> vec_h;
     ECPoint g,h,u;
+    // for ip
+    ECPoint u_new;
     
 };
 
@@ -74,7 +87,8 @@ PP Setup(size_t N)
     pp.h = Hash::StringToECPoint(pp.g.ToByteString());
     pp.vec_g = GenRandomECPointVector(N);
     pp.vec_h = GenRandomECPointVector(N);
-    pp.u = GenRandomECPoint();
+    pp.u = GenRandomGenerator();
+    pp.u_new = GenRandomGenerator();
 
     return pp; 
 }
@@ -105,27 +119,25 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     transcript_str += proof.A.ToByteString();
     BigInt z = Hash::StringToBigInt(transcript_str);
 
-    // prepare the vector polynomials
+    // prepare the vector polynomials -- APGC Page 10 Figure 2
     
     // compute l(X)
-    std::vector<BigInt> vec_z_unary(N, z); // z \cdot 1^nm
-
+    std::vector<BigInt> vec_z_unary(N, z);
     std::vector<BigInt> poly_ll0 = BigIntVectorModSub(witness.vec_a, vec_z_unary, BigInt(order));  
     std::vector<BigInt> poly_ll1(N); 
-    poly_ll1.assign(vec_alpha.begin(), vec_alpha.end()); 
+    poly_ll1 = vec_alpha; 
 
     // compute r(X)     
-    std::vector<BigInt> vec_y_power = GenBigIntPowerVector(N, y); // y^nm
-    std::vector<BigInt> vec_zz_temp = BigIntVectorModAdd(vec_z_unary, witness.vec_b, BigInt(order)); // vec_t = aR + z1^nm
-    std::vector<BigInt> poly_rr0 = BigIntVectorModProduct(vec_y_power, vec_zz_temp, BigInt(order)); // y^nm(aR + z1^nm)
-    std::vector<BigInt> poly_rr1 = BigIntVectorModProduct(vec_y_power, vec_beta, BigInt(order)); //y^nsR X
+    std::vector<BigInt> vec_y_power = GenBigIntPowerVector(N, y); 
+    std::vector<BigInt> vec_zz_temp = BigIntVectorModAdd(vec_z_unary, witness.vec_b, BigInt(order)); 
+    std::vector<BigInt> poly_rr0 = BigIntVectorModProduct(vec_y_power, vec_zz_temp, BigInt(order)); 
+    std::vector<BigInt> poly_rr1 = BigIntVectorModProduct(vec_y_power, vec_beta, BigInt(order));
 
     // compute t(X) 
     BigInt t0 = BigIntVectorModInnerProduct(poly_ll0, poly_rr0, BigInt(order)); 
     BigInt bn_temp1 = BigIntVectorModInnerProduct(poly_ll1, poly_rr0, BigInt(order)); 
     BigInt bn_temp2 = BigIntVectorModInnerProduct(poly_ll0, poly_rr1, BigInt(order));
     BigInt t1 = (bn_temp1 + bn_temp2) % BigInt(order);  
-  
     BigInt t2 = BigIntVectorModInnerProduct(poly_ll1, poly_rr1, BigInt(order));
 
     // compute T1,T2
@@ -160,53 +172,45 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.mu = (witness.r + rho * x % order) % order;
 
     // compute vec_h_new
+    BigInt y_inverse = y.ModInverse(order);
+    std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(N, y_inverse);
+
     std::vector<ECPoint> vec_h_new(N);
     for(auto i=0;i<N;i++){
-        vec_h_new[i] = (pp.vec_h[i] * vec_y_power[i]).Invert();
+        vec_h_new[i] = pp.vec_h[i] * vec_y_inverse_power[i];
     }
     
     // compute B
     ECPoint B = instance.P + proof.A * x;
     for(auto i=0;i<N;i++){
         B += vec_h_new[i] * (z * vec_y_power[i] % order);
-        B -= pp.vec_g[i] * z;
+        B += pp.vec_g[i] * z.ModNegate(order);
     }
- 
+    
+    // prepare u for ip
+    ECPoint P_temp = B + (pp.u * proof.mu).Invert();
+
+    transcript_str += P_temp.ToByteString() + proof.t.ToByteString();
+    BigInt x_new = Hash::StringToBigInt(transcript_str);
+
+    ECPoint u_ip = pp.u_new * x_new;
+
     // inner product proof
     // set ip pp
-    InnerProduct::PP ip_pp = InnerProduct::Setup(N, false); 
-    ip_pp.vec_g.resize(N); 
-    std::copy(pp.vec_g.begin(), pp.vec_g.begin()+N, ip_pp.vec_g.begin()); // ip_pp.vec_g = pp.vec_g
-
-    ip_pp.vec_h.resize(N); 
-    std::copy(vec_h_new.begin(), vec_h_new.begin()+N, ip_pp.vec_h.begin());   // ip_pp.vec_h = vec_h_new 
-
-    ip_pp.u = pp.u;
+    InnerProduct::PP ip_pp = InnerProduct::Setup(N, true); 
+    ip_pp.vec_g = pp.vec_g;
+    ip_pp.vec_h = vec_h_new;
+    ip_pp.u = u_ip;
 
     // set ip witness
     InnerProduct::Witness ip_witness;
-    ip_witness.vec_a = llx; // ip_witness.vec_a = llx
-    ip_witness.vec_b = rrx; // ip_witness.vec_b = rrx
+    ip_witness.vec_a = llx; 
+    ip_witness.vec_b = rrx;
 
-    // set ip instance
+    // set ip instance    
     InnerProduct::Instance ip_instance;
-    ip_instance.P = B - pp.u * proof.mu;  
+    ip_instance.P = P_temp + ip_pp.u * proof.t;  
 
-    // std::vector<ECPoint> vec_A(2*N+1); 
-    // std::vector<BigInt> vec_a(2*N+1); 
-
-    // vec_A.resize(2*N+1); 
-    // std::copy(ip_pp.vec_g.begin(), ip_pp.vec_g.end(), vec_A.begin()); 
-    // std::copy(ip_pp.vec_h.begin(), ip_pp.vec_h.end(), vec_A.begin()+N); 
-    // vec_A[2*N] = ip_pp.u;
-
-    // vec_a.resize(2*N+1); 
-    // std::copy(ip_witness.vec_a.begin(), ip_witness.vec_a.end(), vec_a.begin()); 
-    // std::copy(ip_witness.vec_b.begin(), ip_witness.vec_b.end(), vec_a.begin()+N); 
-    // vec_a[2*N] = proof.t; 
-
-    
- 
     InnerProduct::Prove(ip_pp, ip_instance, ip_witness, transcript_str, proof.ip_proof);  
     
     return proof;
@@ -214,7 +218,6 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 }
 
 
-// check NIZK proof PI for Ci = Enc(pki, m; r) the witness is (r1, r2, m)
 bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof)
 {
     size_t N = pp.vec_g.size();
@@ -235,65 +238,50 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     std::vector<BigInt> vec_y_power = GenBigIntPowerVector(N, y); // y^nm
 
     // compute vec_h_new
+    BigInt y_inverse = y.ModInverse(order);
+    std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(N, y_inverse);
+
     std::vector<ECPoint> vec_h_new(N);
     for(auto i=0;i<N;i++){
-        vec_h_new[i] = (pp.vec_h[i] * vec_y_power[i]).Invert();
-    }
+        vec_h_new[i] = pp.vec_h[i] * vec_y_inverse_power[i];
+    }   
 
     // compute B
     ECPoint B = instance.P + proof.A * x;
     for(auto i=0;i<N;i++){
         B += vec_h_new[i] * (z * vec_y_power[i] % order);
-        B -= pp.vec_g[i] * z;
+        B += pp.vec_g[i] * z.ModNegate(order);
     }
 
+    // prepare u for ip
+    ECPoint P_temp = B + (pp.u * proof.mu).Invert();
+
+    transcript_str += P_temp.ToByteString() + proof.t.ToByteString();
+    BigInt x_new = Hash::StringToBigInt(transcript_str);
+
+    ECPoint u_ip = pp.u_new * x_new;
+    
     // prepare
-    std::vector<BigInt> vec_1_power(N, bn_1); // vec_unary = 1^nm
-    std::vector<BigInt> vec_short_1_power(N, bn_1); 
-    std::vector<BigInt> vec_2_power = GenBigIntPowerVector(N, bn_2);
-    std::vector<BigInt> vec_short_2_power = GenBigIntPowerVector(N, bn_2);  
-    BigInt z_square = z.ModSquare(order); // (z*z)%q;  
+    std::vector<BigInt> vec_1_power(N, bn_1); 
+    BigInt z_square = z.ModSquare(order);
 
-    std::vector<BigInt> vec_adjust_z_power(N+1); // generate z^{j+2} j \in [n]
-    vec_adjust_z_power[0] = z; 
-    for (auto j = 1; j <= N; j++)
-    {
-        vec_adjust_z_power[j] = (z * vec_adjust_z_power[j-1]) % order; 
-    }  
-
-    // compute sum_{j=1^m} z^{j+2}
-    BigInt sum_z = bn_0; 
-    for (auto j = 1; j <= N; j++)
-    {
-        sum_z += vec_adjust_z_power[j]; 
-    }
-    sum_z = (sum_z * z) % order;  
-
-    // compute delta_yz (pp. 21)    
+    // compute delta_yz -- APGC Page 8 eq(2): 2^n -> 0 for vec_w = 0    
     BigInt bn_temp1 = BigIntVectorModInnerProduct(vec_1_power, vec_y_power, BigInt(order)); 
-    BigInt bn_temp2 = BigIntVectorModInnerProduct(vec_short_1_power, vec_short_2_power, BigInt(order)); 
-
-    BigInt bn_c0 = z.ModSub(z_square, order); // z-z^2
-    bn_temp1 = bn_c0 * bn_temp1; 
-    bn_temp2 = sum_z * bn_temp2; 
-  
-    BigInt delta_yz = bn_temp1.ModSub(bn_temp2, order);  //Eq (39) also see page 21
+    BigInt delta_yz = z.ModSub(z_square, order) * bn_temp1; 
 
     // check condition 1
+    
     // inner product proof
     // set ip pp
-    InnerProduct::PP ip_pp = InnerProduct::Setup(N, false); 
-    ip_pp.vec_g.resize(N); 
+    InnerProduct::PP ip_pp = InnerProduct::Setup(N, true);
     ip_pp.vec_g = pp.vec_g;
-
-    ip_pp.vec_h.resize(N); 
     ip_pp.vec_h = vec_h_new;
-
-    ip_pp.u = pp.u;
+    ip_pp.u = u_ip;
 
     // set ip instance
     InnerProduct::Instance ip_instance;
-    ip_instance.P = B - pp.u * proof.mu;  
+    ip_instance.P = P_temp + ip_pp.u * proof.t;    
+
  
     vec_condition[0] = InnerProduct::Verify(ip_pp, ip_instance, transcript_str, proof.ip_proof);  
     
@@ -307,7 +295,6 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     vec_condition[1] = (left == right);
 
     bool Validity = vec_condition[0] && vec_condition[1];
-
 
     #ifdef DEBUG
     for(auto i = 0; i < 2; i++){
