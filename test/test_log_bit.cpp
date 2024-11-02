@@ -3,6 +3,16 @@
 #include "../zkp/nizk/nizk_log_bit.hpp"
 #include "../crypto/setup.hpp"
 
+std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
+{
+    std::vector<size_t> vec_index(m); 
+    for(auto j = 0; j < m; j++){
+        vec_index[j] = l % n;  
+        l = l / n; 
+    }
+    return vec_index;  
+} 
+
 void GenRandomInstanceWitness(LogBit::PP &pp, LogBit::Instance &instance, 
                                  LogBit::Witness &witness, bool flag)
 {
@@ -17,13 +27,24 @@ void GenRandomInstanceWitness(LogBit::PP &pp, LogBit::Instance &instance,
 
     size_t  N = pp.vec_g.size();
 
-    witness.r = GenRandomBigIntLessThan(order);
-    witness.vec_a = GenRandomBigIntVectorLessThan(N,order);
-    witness.vec_b = GenRandomBigIntVectorLessThan(N,order);
-    for(auto i=0;i<N;i++){
-        witness.vec_b[i] = (witness.vec_a[i] - bn_1) % order;
-    }
+    srand(time(0));
+    size_t temp = rand() % N; 
 
+    witness.r = GenRandomBigIntLessThan(order);
+    std::vector<size_t> vec_coin = Decompose(temp, 2, N);
+    witness.vec_a.resize(N);
+    witness.vec_b.resize(N);
+    for(auto i=0;i<N;i++){
+        if(vec_coin[i] == 1){
+            witness.vec_a[i] = bn_1;
+            witness.vec_b[i] = bn_0;
+        }
+        else{
+            witness.vec_a[i] = bn_0;
+            witness.vec_b[i] = bn_1.ModNegate(order);
+        }
+    }
+    
     instance.P = pp.u * witness.r;
     for(auto i=0; i<N; i++){
         instance.P += pp.vec_g[i] * witness.vec_a[i];
@@ -79,7 +100,7 @@ int main()
     CRYPTO_Initialize();  
     
     test_nizk_LogBit(true);
-    // test_nizk_LogBit(false); 
+    test_nizk_LogBit(false); 
 
     CRYPTO_Finalize(); 
 
