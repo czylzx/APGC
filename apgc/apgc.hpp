@@ -19,7 +19,7 @@ this hpp implements the APGC functionality
 #include "../zkp/apgcproofs/apgc_sdr_solvent_equal.hpp"
 #include "../zkp/nizk/nizk_sdr_trans.hpp"
 
-//#define DEMO           // demo mode 
+#define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
 
 
@@ -543,12 +543,14 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     start_time = std::chrono::steady_clock::now();
     AnyOutOfMany::PP slack_participant_pp = AnyOutOfMany::Setup(n, pp.enc_part.g, pp.enc_part.h);
     pp.any_out_of_many_part = slack_participant_pp;
+    pp.SLACK_PARTICIPANT_NUM = n -1 -k;
     AnyOutOfMany::Instance slack_participant_instance;
     slack_participant_instance.vec_com.resize(n);
     for(auto i = 0; i < n; i++)
     {
         slack_participant_instance.vec_com[i] = newCTx.vec_participant_transfer_ct[i].Y;
     }
+    slack_participant_instance.k = BigInt(pp.SLACK_PARTICIPANT_NUM);
     AnyOutOfMany::Witness slack_participant_witness;
     //slack_participant_witness.vec_s.resize(pp.SLACK_PARTICIPANT_NUM);
     slack_participant_witness.vec_b.resize(n);
@@ -867,11 +869,13 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     start_time = std::chrono::steady_clock::now();
     AnyOutOfMany::PP slack_participant_pp = pp.any_out_of_many_part;
     AnyOutOfMany::Instance slack_participant_instance;
+    slack_participant_instance.k = BigInt(pp.SLACK_PARTICIPANT_NUM);
     slack_participant_instance.vec_com.resize(n);
     for(auto i = 0; i < n; i++)
     {
         slack_participant_instance.vec_com[i] = newCTx.vec_participant_transfer_ct[i].Y;
     }
+
     AnyOutOfMany::Proof slack_participant_proof = newCTx.slack_participant_proof;
     transcript_str = "";
     condition3 = AnyOutOfMany::Verify(slack_participant_pp, slack_participant_instance, slack_participant_proof, transcript_str);

@@ -23,11 +23,11 @@ std::vector<BigInt> lagrange(std::vector<BigInt> x, std::vector<BigInt> y)
             {
                 if(i != j)
                 {
-                    num = num * x[j];
-                    den = den * (x[j] - x[i]);
+                    num = num * x[j] % order;
+                    den = den * (x[j] - x[i]) % order;
                 }
             }
-            result[i] = y[i] * num * den.ModInverse(order);
+            result[i] = y[i] * num * den.ModInverse(order)%order;
         }
         return result;
     }

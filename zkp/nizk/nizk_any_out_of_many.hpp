@@ -52,6 +52,7 @@ std::ifstream &operator>>(std::ifstream &fin, PP& pp)
 struct Instance
 {
     std::vector<ECPoint> vec_com;// the vector of the commitment, in APGC, it may refer to the pk or the elgamal cipher.
+    BigInt k;
 };
 struct Witness
 {
@@ -202,12 +203,16 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     
     // compute r(X)     
     std::vector<BigInt> poly_rr0 = BigIntVectorModAdd(vec_aR, vec_z_unary, BigInt(order)); // aR + z1^n
+    std::vector<BigInt> vec_zz_temp_y_inverse = BigIntVectorModScalar(vec_y_inverse_power, z_square, BigInt(order));
+    poly_rr0 = BigIntVectorModAdd(poly_rr0, vec_zz_temp_y_inverse, BigInt(order)); // aR + z1^n + z^2 y^{-i+1}
     
     std::vector<BigInt> poly_rr1(LEN);
     poly_rr1.assign(vec_sR.begin(), vec_sR.end());
 
     // compute t(X) 
     BigInt t0 = BigIntVectorModInnerProduct(poly_ll0, poly_rr0, BigInt(order)); 
+
+    t0.Print("t0");
     BigInt bn_temp1 = BigIntVectorModInnerProduct(poly_ll1, poly_rr0, BigInt(order)); 
     BigInt bn_temp2 = BigIntVectorModInnerProduct(poly_ll0, poly_rr1, BigInt(order));
     BigInt t1 = (bn_temp1 + bn_temp2) % BigInt(order);  
@@ -269,10 +274,15 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
             j++;
         }
     }
+    
     // addtional check
     if(j != k)
     {
         std::cerr << "Error: the size of witness.vec_s is not equal to the size of witness.vec_b" << std::endl;
+        std::cout<<"k = "<<k<<std::endl;
+        PrintBigIntVector(witness.vec_s, "witness.vec_s");
+        PrintBigIntVector(witness.vec_b, "witness.vec_b");
+        std::cout<<"j = "<<j<<std::endl;
         //exit(EXIT_FAILURE);
     }
     proof.fs = (rs * x + proof.fs) % order;
@@ -395,11 +405,14 @@ bool Verify(PP &pp, Instance &instance, Proof &proof, std::string &transcript_st
     ///BigInt bn_temp2 = BigIntVectorModInnerProduct(vec_short_1_power, vec_short_2_power, BigInt(order)); 
 
     BigInt bn_c0 = z.ModSub(z_square, order); // z
-    bn_temp1 = bn_c0 * bn_temp1; 
+    bn_temp1 = bn_c0 * bn_temp1 % order; 
     //bn_temp2 = sum_z * bn_temp2; 
-  
+    
     //BigInt delta_yz = bn_temp1.ModSub(bn_temp2, order);
-    BigInt delta_yz = bn_temp1;  
+    BigInt delta_yz = bn_temp1 - z_cubic * BigInt(LEN) % order; 
+    //BigInt delta_yz = bn_temp1 - z_cubic; 
+    delta_yz = (delta_yz + order ) % order;
+    delta_yz.Print("delta_yz");
 
 
     // check  
@@ -417,10 +430,14 @@ bool Verify(PP &pp, Instance &instance, Proof &proof, std::string &transcript_st
     // vec_A[n] = pp.h, vec_A[n+1] = proof.T1, vec_A[n+2] = proof.T2;
     // vec_a[n] = delta_yz, vec_a[n+1] = x, vec_a[n+2] = x_square;  
 
-    std::vector<ECPoint> vec_A(3);
-    std::vector<BigInt> vec_a(3);
-    vec_A[0] = pp.g, vec_A[1] = proof.T1, vec_A[2] = proof.T2;
-    vec_a[0] = delta_yz, vec_a[1] = x, vec_a[2] = x_square;
+    std::vector<ECPoint> vec_A(4);
+    std::vector<BigInt> vec_a(4);
+    vec_A[0] = pp.g, vec_A[1] = proof.T1, vec_A[2] = proof.T2, vec_A[3] = pp.g;
+    vec_a[0] = delta_yz, vec_a[1] = x, vec_a[2] = x_square, vec_a[3] = z_square * instance.k % order;
+    // std::vector<ECPoint> vec_A(3);
+    // std::vector<BigInt> vec_a(3);
+    // vec_A[0] = pp.g, vec_A[1] = proof.T1, vec_A[2] = proof.T2;
+    // vec_a[0] = delta_yz, vec_a[1] = x, vec_a[2] = x_square;
 
     ECPoint RIGHT = ECPointVectorMul(vec_A, vec_a);  // RIGHT =  g^{\delta_yz} T_1^x T_2^{x^2} 
 
@@ -478,8 +495,13 @@ bool Verify(PP &pp, Instance &instance, Proof &proof, std::string &transcript_st
     //BigInt z_minus = z.ModNegate(order);
     std::vector<BigInt> vec_zz_P = BigIntVectorModScalar(vec_y_power, z_minus, BigInt(order)); // -z y^n
 
+    std::vector<BigInt> vec_z_plus = BigIntVectorModScalar(vec_y_inverse_power, z_square, BigInt(order)); 
+    vec_z = BigIntVectorModAdd(vec_z, vec_z_plus, BigInt(order)); // z + z^2 y^{-i+1}
+
+    std::cout << "vec_z.size() = " << vec_z.size() << std::endl;
+
     std::move(vec_z_minus_unary.begin(), vec_z_minus_unary.end(), vec_a.begin());
-    std::move(vec_z.begin(), vec_z.end(), vec_a.begin()+ip_pp.VECTOR_LEN); // LEFT += g^{1 z^n}
+    std::move(vec_z.begin(), vec_z.end(), vec_a.begin() + ip_pp.VECTOR_LEN); // LEFT += g^{1 z^n}
     std::move(vec_zz_P.begin(), vec_zz_P.end(), vec_a.begin()+2*ip_pp.VECTOR_LEN); 
      
     vec_a[3*ip_pp.VECTOR_LEN] = bn_1; 

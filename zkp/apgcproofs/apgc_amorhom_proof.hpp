@@ -106,6 +106,7 @@ namespace AmorHom
         
 
         size_t n = pp.n;
+        
 
         //std::vector<BigInt> vec_j_power = GenBigIntPowerVector(pp.n, j);
         std::vector<std::vector<BigInt>> vec_j_power(pp.n, std::vector<BigInt>(pp.n));
@@ -125,6 +126,7 @@ namespace AmorHom
             
         }
         std::vector<BigInt> vec_p = GenBigIntPowerVector(pp.n*4+1, p);
+        auto start_time = std::chrono::steady_clock::now();
         for(auto j=0; j < pp.n; j++)
         {
             vec_y_base_1[j][j+n] =  vec_y_base_1[j][j+n] + pp.g;
@@ -148,7 +150,11 @@ namespace AmorHom
             }
            
         }
+        auto end_time = std::chrono::steady_clock::now();
+        auto time_diff = end_time - start_time;
+        std::cout << "time for computing vec_y_base = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
         // std::vector<ECPoint> vec_base_new_text(pp.n*4, init);
+        start_time = std::chrono::steady_clock::now();
         for(auto i = 0; i < pp.n*4; i++)
         {
             for(auto j = 0; j < pp.n; j++)
@@ -164,6 +170,9 @@ namespace AmorHom
             }
             vec_base_new[i] = vec_base_new[i] + vec_y_base_5[i] * vec_p[pp.n*4];    
         }
+        end_time = std::chrono::steady_clock::now();
+        time_diff = end_time - start_time;
+        std::cout << "time for computing vec_base_new = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
         // ECPoint test_F = ECPointVectorMul(vec_base_new_text, witness.vec_y); 
         // PrintECPointVector(vec_base_new_text, "vec_base_new_text");
         // PrintBigIntVector(witness.vec_y, "witness.vec_y");
