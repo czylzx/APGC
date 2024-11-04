@@ -90,6 +90,7 @@ PP Setup(size_t N)
 
     srand(time(0));
     pp.k = rand() % N;
+    // pp.k = 7;
     pp.h = GenRandomGenerator();
     pp.g = GenRandomGenerator();
     pp.u = GenRandomGenerator();
@@ -139,7 +140,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.P = pp.u * rP;
     for(auto i=0;i<N;i++){
         proof.P += pp.vec_g[i] * vec_s[i];
-        proof.P += pp.vec_h[i] * (vec_s[i] - bn_1);//here 这里很多指数会是-1,可能会有问题
+        proof.P += pp.vec_h[i] * ((vec_s[i] - bn_1 + order) % order);//here 这里很多指数会是-1,可能会有问题
     }
 
     // Lin Bit Proof
@@ -197,12 +198,12 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     
             for(auto b = 0; b < m; b++){      
                 if(vec_index[b] == 1){
-                    A[b][0] = vec_a[k*i+b];
-                    A[b][1] = vec_L[k*i+b];
+                    A[b][0] = vec_a[m*i+b];
+                    A[b][1] = vec_L[m*i+b];
                 }
                 else{
-                    A[b][0] = bn_0 - vec_a[k*i+b];
-                    A[b][1] = bn_1 - vec_L[k*i+b];
+                    A[b][0] = bn_0 - vec_a[m*i+b];
+                    A[b][1] = bn_1 - vec_L[m*i+b];
                 }    
             } 
             std::vector<BigInt> p_j = PolyMul(A);
@@ -211,7 +212,6 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
         }
         P.emplace_back(Pi);
     }
-    std::cout<<"here"<<std::endl;
 
     // compute vec_e_k
     std::vector<BigInt> vec_e_k = GenBigIntPowerVector(k, e);
@@ -343,10 +343,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     
             for(auto b = 0; b < m; b++){        
                 if(vec_index[b] == 1){
-                    vec_P[j] = vec_P[j] * proof.vec_f[i*k+b] % order;
+                    vec_P[j] = vec_P[j] * proof.vec_f[i*m+b] % order;
                 }
                 else{
-                    vec_P[j] = vec_P[j] * ((x - proof.vec_f[i*k+b] + order) % order) % order;
+                    vec_P[j] = vec_P[j] * ((x - proof.vec_f[i*m+b] + order) % order) % order;
                 }    
             } 
         }
