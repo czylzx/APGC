@@ -24,7 +24,7 @@ void GenRandomInstanceWitness(Koon::PP &pp, Koon::Instance &instance,
 
     // srand(time(0));
     witness.vec_l[0] = rand() % N;
-    std::cout<<pp.k<<std::endl;
+    // std::cout<<pp.k<<std::endl;
 
     size_t count = 1;
     while(count < pp.k){
@@ -42,9 +42,9 @@ void GenRandomInstanceWitness(Koon::PP &pp, Koon::Instance &instance,
         }
     }
 
-    for(auto i=0;i<pp.k;i++){
-        std::cout<<witness.vec_l[i]<<std::endl;
-    }
+    // for(auto i=0;i<pp.k;i++){
+    //     std::cout<<witness.vec_l[i]<<std::endl;
+    // }
     
     instance.vec_c = GenRandomECPointVector(N);
     for(auto i=0;i<pp.k;i++){
