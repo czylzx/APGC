@@ -47,6 +47,8 @@ struct PP
     std::vector<ECPoint> vec_g;
     std::vector<ECPoint> vec_h;
     std::vector<ECPoint> vec_g_mk;
+    // for log bit
+    ECPoint u_new;
     
 };
 
@@ -94,6 +96,7 @@ PP Setup(size_t N)
     pp.h = GenRandomGenerator();
     pp.g = GenRandomGenerator();
     pp.u = GenRandomGenerator();
+    pp.u_new = GenRandomGenerator();
     pp.vec_g = GenRandomECPointVector(N);
     pp.vec_h = GenRandomECPointVector(N);
     pp.vec_g_mk = GenRandomECPointVector(log2(N) * pp.k);
@@ -281,6 +284,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     logbit_pp.g = pp.g;
     logbit_pp.h = pp.h;
     logbit_pp.u = pp.u;
+    logbit_pp.u_new = pp.u_new;
     logbit_pp.vec_g = pp.vec_g;
     logbit_pp.vec_h = pp.vec_h;
 
@@ -413,6 +417,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     logbit_pp.g = pp.g;
     logbit_pp.h = pp.h;
     logbit_pp.u = pp.u;
+    logbit_pp.u_new = pp.u_new;
     logbit_pp.vec_g = pp.vec_g;
     logbit_pp.vec_h = pp.vec_h;
 
