@@ -232,6 +232,12 @@ TARGET_LINK_LIBRARIES(test_sdr_trans ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 ADD_EXECUTABLE(test_apgc test/test_apgc.cpp)
 TARGET_LINK_LIBRARIES(test_apgc ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
+ADD_EXECUTABLE(test_kbit test/test_k_bit.cpp)
+TARGET_LINK_LIBRARIES(test_kbit ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
+ADD_EXECUTABLE(test_zkdl test/test_nizk_zkdl.cpp)
+TARGET_LINK_LIBRARIES(test_zkdl ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
 # mcl
 # add_executable(test_mcl test/test_mcl.cpp)
 # target_link_libraries(test_mcl libmcl.a libgmp.a)

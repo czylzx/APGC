@@ -8,6 +8,8 @@ this hpp implements the eqmdl product proof system
 #include "../../crypto/hash.hpp"
 #include "../nizk/nizk_lin_bit.hpp"
 #include "./apgc_amorhom_proof.hpp"
+#include "../nizk/nizk_kbit.hpp"
+#include "../nizk/nizk_zkdl.hpp"
 
 namespace Solvent_Equal
 {
@@ -25,8 +27,12 @@ namespace Solvent_Equal
         ECPoint h;
         ECPoint u;
         std::vector<ECPoint> vec_g;
+        std::vector<ECPoint> vec_g1;
+        std::vector<ECPoint> vec_g2;
+        std::vector<ECPoint> vec_g3;
+        std::vector<ECPoint> vec_g4;
         std::vector<ECPoint> vec_h;
-        std::vector<ECPoint> vec_u;
+
         // ECPoint u;
     };
 
@@ -57,12 +63,14 @@ namespace Solvent_Equal
     struct Proof
     {
         ECPoint P_equal;
+        ECPoint S_equal;
         std::vector<ECPoint> vec_C;
         BigInt zs;
         AmorHom::Proof amorhom_proof;
         LinBit::Proof linbit_proof;
-        
-    };
+        Kbit::Proof kbit_proof;
+        ZkdlProduct::Proof zkdl_product_proof;
+    }; 
 
     std::ofstream &operator<<(std::ofstream &fout, const Solvent_Equal::Proof &proof)
     {
@@ -87,9 +95,7 @@ namespace Solvent_Equal
     {
         std::cout << "vector length = " << pp.VECTOR_LEN << std::endl;
         // size of the vector = VECTOR_LEN
-        PrintECPointVector(pp.vec_g, "g");
-        PrintECPointVector(pp.vec_h, "h");
-        PrintECPointVector(pp.vec_u, "u");
+
 
         // pp.u.Print("u");
     }
@@ -128,8 +134,11 @@ namespace Solvent_Equal
         pp.h = h;
         pp.u = GenRandomGenerator();
         pp.vec_g = GenRandomECPointVector(pp.LOG_VECTOR_LEN);
-        pp.vec_h = GenRandomECPointVector(VECTOR_LEN);
-        pp.vec_u = GenRandomECPointVector(4*VECTOR_LEN);
+        pp.vec_g1 = GenRandomECPointVector(VECTOR_LEN);
+        pp.vec_g2 = GenRandomECPointVector(VECTOR_LEN);
+        pp.vec_g3 = GenRandomECPointVector(VECTOR_LEN);
+        pp.vec_g4 = GenRandomECPointVector(VECTOR_LEN);
+        pp.vec_h = GenRandomECPointVector(4*VECTOR_LEN);
         return pp;
     }
 
@@ -322,12 +331,12 @@ namespace Solvent_Equal
         }
 
         //compute P(x)
-        std::vector<BigInt> vec_P_x(n);
-        for(auto j = 0; j < n; j++)
-        {
-            vec_P_x[j] = BigInt(j);
-        }
-        std::vector<BigInt> vec_P = lagrange(vec_P_x, vec_s); 
+        // std::vector<BigInt> vec_P_x(n);
+        // for(auto j = 0; j < n; j++)
+        // {
+        //     vec_P_x[j] = BigInt(j);
+        // }
+        // std::vector<BigInt> vec_P = lagrange(vec_P_x, vec_s); 
         //PrintBigIntVector(vec_P, "vec_P");
         //std::vector<BigInt> vec_a(n);
         std::vector<BigInt> vec_sk(n);
@@ -350,7 +359,7 @@ namespace Solvent_Equal
 
         std::vector<BigInt> vec_y(4*n);
         
-        std::copy(vec_P.begin(), vec_P.end(), vec_y.begin());
+        std::copy(vec_s.begin(), vec_s.end(), vec_y.begin());
 
         std::copy(vec_sk.begin(), vec_sk.end(), vec_y.begin()+n);
         std::copy(vec_r.begin(), vec_r.end(), vec_y.begin()+2*n);
@@ -359,7 +368,17 @@ namespace Solvent_Equal
         //PrintBigIntVector(vec_y, "vec_y");
 
         BigInt rP = GenRandomBigIntLessThan(order);
-        ECPoint P_equal = ECPointVectorMul(pp.vec_u, vec_y) + pp.u * rP;
+        BigInt rS = GenRandomBigIntLessThan(order);
+        std::vector<BigInt> vec_1_power(n, bn_1);
+        std::vector<BigInt> vec_s_inverse = BigIntVectorModSub(vec_s, vec_1_power, order);
+        ECPoint P_equal = ECPointVectorMul(pp.vec_g1, vec_s) + 
+                          ECPointVectorMul(pp.vec_g2, vec_sk) + 
+                          ECPointVectorMul(pp.vec_g3, vec_r) +
+                          ECPointVectorMul(pp.vec_g4, vec_v) +
+                          pp.u * rP;
+        ECPoint S_equal = ECPointVectorMul(pp.vec_g1, vec_s) + 
+                          ECPointVectorMul(pp.vec_h, vec_sk) + 
+                          pp.u * rS;
 
         transcript_str = "";
         transcript_str = transcript_str + linbit_proof.A.ToByteString() + linbit_proof.C.ToByteString() + linbit_proof.D.ToByteString();
@@ -397,36 +416,97 @@ namespace Solvent_Equal
             zs += rho[d] * x_pow % order;
             x_pow = x_pow * x % order;
         }
-        zs = zs * x_pow.ModInverse(order) % order;
-        zs = (-zs + order) % order;
+        zs = zs + rS * x_pow % order;
+        zs = zs % order;
 
         proof.P_equal = P_equal;
-        
+        proof.S_equal = S_equal;
         proof.vec_C = vec_C;
         proof.zs = zs;
         
         std::vector<BigInt> exp_x(m+1);
+        //std::vector<BigInt> x_power_m(m);
         exp_x[0] = bn_1;  
         for(auto k = 1; k <= m; k++){
             exp_x[k] = exp_x[k-1] * x % order; 
         }
-
+        //std::copy(exp_x.begin(), exp_x.end()-1, x_power_m.begin());
         
         ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order);
         for(auto d = 1;d < m; d++){
             right += proof.vec_C[d] * (bn_0 - exp_x[d] + order);
         }
 
+        Kbit::PP kbit_pp = Kbit::Setup(n);
+        kbit_pp.g = pp.g;
+        kbit_pp.h = pp.h;
+        kbit_pp.u = pp.u;
+        kbit_pp.vec_h = pp.vec_h;
+        kbit_pp.vec_g = pp.vec_g1;
+
+        Kbit::Instance kbit_instance;
+        kbit_instance.P = S_equal;
+        kbit_instance.k = bn_1;
+
+        Kbit::Witness kbit_witness;
+        kbit_witness.vec_a = vec_s;
+        kbit_witness.vec_b = vec_s_inverse;
+        kbit_witness.r = rS;
+
+        Kbit::Proof kbit_proof;
+        transcript_str = "";
+        kbit_proof = Kbit::Prove(kbit_pp, kbit_instance, kbit_witness, transcript_str);
+        proof.kbit_proof = kbit_proof;
+
+        std::vector<BigInt> vec_x_power_m(n,-exp_x[m]);
+        ECPoint S_prime = ECPointVectorMul(pp.vec_h, vec_x_power_m);
+        S_prime = S_prime + right;
+        for(auto i = 0; i < n; i++)
+        {
+            S_prime = S_prime + (pp.vec_g1[i] + pp.vec_h[i]) * vec_p_eval[i];
+        }
+        ZkdlProduct::PP zkdl_pp = ZkdlProduct::Setup(4*n+1, true); //notice the flag
+        std::vector<ECPoint> vec_g4zkdl(4*n+1);
+        std::vector<ECPoint> vec_g4amorhom(4*n);
+        std::vector<BigInt> vec_a4zkdl(4*n+1);
+        for(auto i = 0; i < n; i++)
+        {
+            vec_g4zkdl[i] = pp.vec_g2[i];
+            vec_g4zkdl[n+i] = pp.vec_g3[i];
+            vec_g4zkdl[2*n+i] = pp.vec_g4[i];
+            vec_g4zkdl[3*n+i] = pp.vec_h[i];
+            vec_a4zkdl[i] = vec_sk[i];
+            vec_a4zkdl[n+i] = vec_r[i];
+            vec_a4zkdl[2*n+i] = vec_v[i];
+            vec_a4zkdl[3*n+i] = -vec_s_inverse[i];
+        }
+        vec_g4zkdl[4*n] = pp.u;
+        vec_a4zkdl[4*n] = rP - rS;
+        zkdl_pp.vec_g = vec_g4zkdl;
+        std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end()-1, vec_g4amorhom.begin());
+        ZkdlProduct::Instance zkdl_instance;
+        zkdl_instance.G = P_equal + S_equal.Invert();
+
+        ZkdlProduct::Witness zkdl_witness;
+        zkdl_witness.vec_a = vec_a4zkdl;
+
+        ZkdlProduct::Proof zkdl_proof;
+        transcript_str = "";
+        ZkdlProduct::Prove(zkdl_pp, zkdl_instance,zkdl_witness, transcript_str, zkdl_proof);
+        proof.zkdl_product_proof = zkdl_proof;
+
+
+
         AmorHom::PP amorhom_pp = AmorHom::Setup(n);
         amorhom_pp.g = pp.g;
         amorhom_pp.h = pp.h;
         amorhom_pp.u = pp.u;
-        amorhom_pp.vec_h = pp.vec_h;
-        amorhom_pp.vec_u = pp.vec_u;
+        amorhom_pp.vec_g = vec_g4amorhom;
+        //amorhom_pp.vec_u = pp.vec_u;
 
         AmorHom::Instance amorhom_instance;
         amorhom_instance.P = P_equal;
-        amorhom_instance.S = ECPointVectorMul(pp.vec_h, vec_p_eval) + right;
+        amorhom_instance.S = S_equal;
         amorhom_instance.vec_pk = instance.pk;
         amorhom_instance.Sum_CL = instance.Sum_CL;
         amorhom_instance.Sum_CR = instance.Sum_CR;
@@ -500,17 +580,59 @@ namespace Solvent_Equal
         for(auto d = 1;d < m; d++){
             right += proof.vec_C[d] * (bn_0 - exp_x[d] + order);
         }
+        Kbit::PP kbit_pp = Kbit::Setup(n);
+        kbit_pp.g = pp.g;
+        kbit_pp.h = pp.h;
+        kbit_pp.u = pp.u;
+        kbit_pp.vec_h = pp.vec_h;
+        kbit_pp.vec_g = pp.vec_g1;
 
+        Kbit::Instance kbit_instance;
+        kbit_instance.P = proof.S_equal;
+        kbit_instance.k = bn_1;
+
+        Kbit::Proof kbit_proof = proof.kbit_proof;
+        transcript_str = "";
+        bool V2 = Kbit::Verify(kbit_pp, kbit_instance, transcript_str, kbit_proof);
+
+        std::vector<BigInt> vec_x_power_m(n,-exp_x[m]);
+        ECPoint S_prime = ECPointVectorMul(pp.vec_h, vec_x_power_m);
+        S_prime = S_prime + right;
+        for(auto i = 0; i < n; i++)
+        {
+            S_prime = S_prime + (pp.vec_g1[i] + pp.vec_h[i]) * vec_p_eval[i];
+        }
+
+        ZkdlProduct::PP zkdl_pp = ZkdlProduct::Setup(4*n+1, true); //notice the flag
+        std::vector<ECPoint> vec_g4zkdl(4*n+1);
+        std::vector<ECPoint> vec_g4amorhom(4*n);
+        for(auto i = 0; i < n; i++)
+        {
+            vec_g4zkdl[i] = pp.vec_g2[i];
+            vec_g4zkdl[n+i] = pp.vec_g3[i];
+            vec_g4zkdl[2*n+i] = pp.vec_g4[i];
+            vec_g4zkdl[3*n+i] = pp.vec_h[i];
+        }
+        vec_g4zkdl[4*n] = pp.u;
+        std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end()-1, vec_g4amorhom.begin());
+        zkdl_pp.vec_g = vec_g4zkdl;
+        ZkdlProduct::Instance zkdl_instance;
+        zkdl_instance.G = proof.P_equal + proof.S_equal.Invert();
+
+        ZkdlProduct::Proof zkdl_proof = proof.zkdl_product_proof;
+        transcript_str = "";
+        bool V3 = ZkdlProduct::Verify(zkdl_pp, zkdl_instance, transcript_str, zkdl_proof);
+       
         AmorHom::PP amorhom_pp = AmorHom::Setup(n);
         amorhom_pp.g = pp.g;
         amorhom_pp.h = pp.h;
         amorhom_pp.u = pp.u;
-        amorhom_pp.vec_h = pp.vec_h;
-        amorhom_pp.vec_u = pp.vec_u;
+        amorhom_pp.vec_g = vec_g4amorhom;
+
 
         AmorHom::Instance amorhom_instance;
         amorhom_instance.P = proof.P_equal;
-        amorhom_instance.S = ECPointVectorMul(pp.vec_h, vec_p_eval) + right;
+        amorhom_instance.S = proof.S_equal;
         amorhom_instance.vec_pk = instance.pk;
         amorhom_instance.Sum_CL = instance.Sum_CL;
         amorhom_instance.Sum_CR = instance.Sum_CR;
@@ -522,9 +644,20 @@ namespace Solvent_Equal
         AmorHom::Proof amorhom_proof;
         amorhom_proof = proof.amorhom_proof;
         transcript_str = "";
-        bool V2 = AmorHom::Verify(amorhom_pp, amorhom_instance, transcript_str, amorhom_proof);
+        bool V4 = AmorHom::Verify(amorhom_pp, amorhom_instance, transcript_str, amorhom_proof);
 
-        Validity = V1 && V2;
+        ECPoint LEFT = proof.S_equal * (exp_x[m]) + S_prime.Invert();
+        bool V5;
+        if(LEFT == pp.u * proof.zs)
+        {
+            V5 = true;
+        }
+        else
+        {
+            V5 = false;
+        }
+
+        Validity = V1 && V2 && V3 && V4 && V5;
         return Validity;
     }
 
