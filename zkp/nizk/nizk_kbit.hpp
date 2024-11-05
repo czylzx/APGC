@@ -1,20 +1,30 @@
 
-#ifndef NIZK_1OON_HPP_
-#define NIZK_1OON_HPP_
+#ifndef NIZK_K_BIT_HPP_
+#define NIZK_K_BIT_HPP_
 
 #include "../../crypto/ec_point.hpp"
 #include "../../crypto/hash.hpp"
 #include "../../pke/twisted_exponential_elgamal.hpp"
 #include "../../commitment/pedersen.hpp"
 #include "../../utility/polymul.hpp"
-#include "../../zkp/nizk/nizk_lin_bit.hpp"
-#include "../../zkp/nizk/nizk_log_bit.hpp"
+#include "../bulletproofs/innerproduct_proof.hpp"
 
 
-namespace Koon{
+namespace Kbit{
 
 using Serialization::operator<<; 
-using Serialization::operator>>;
+using Serialization::operator>>; 
+
+std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
+{
+    std::vector<size_t> vec_index(m); 
+    for(auto j = 0; j < m; j++){
+        vec_index[j] = l % n;  
+        l = l / n; 
+    }
+    return vec_index;  
+} 
+
 
 /* generate a^n = (a^0, a^1, a^2, ..., a^{n-1}) */ 
 std::vector<BigInt> GenBigIntPowerVector(size_t LEN, const BigInt &a)
@@ -28,26 +38,12 @@ std::vector<BigInt> GenBigIntPowerVector(size_t LEN, const BigInt &a)
     return vec_result; 
 }
 
-std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
-{
-    std::vector<size_t> vec_index(m); 
-    for(auto j = 0; j < m; j++){
-        vec_index[j] = l % n;  
-        l = l / n; 
-    }
-    return vec_index;  
-} 
-
 struct PP
 {
-    size_t k;
-    ECPoint g;
-    ECPoint h;
-    ECPoint u;
     std::vector<ECPoint> vec_g;
     std::vector<ECPoint> vec_h;
-    std::vector<ECPoint> vec_g_mk;
-    // for log bit
+    ECPoint g,h,u;
+    // for ip
     ECPoint u_new;
     
 };
@@ -55,14 +51,18 @@ struct PP
 // structure of instance
 struct Instance
 {
-    std::vector<ECPoint> vec_c;
+    ECPoint P;
+    // k in [0,n]
+    //size_t k;
+    BigInt k;
 };
 
 // structure of witness 
 struct Witness
 {
-    std::vector<size_t> vec_l;
-    std::vector<BigInt> vec_r;
+    std::vector<BigInt> vec_a;
+    std::vector<BigInt> vec_b;
+    BigInt r;
 };
 
 
@@ -70,18 +70,12 @@ struct Witness
 struct Proof
 {
     ECPoint A;
-    ECPoint B;
-    ECPoint C;
-    ECPoint D;
-    ECPoint P;
-    std::vector<ECPoint> vec_C_c;
-    std::vector<ECPoint> vec_C_p;
-    std::vector<BigInt> vec_f;
-    BigInt zA;
-    BigInt zC;
-    BigInt zG;
-    BigInt zP;
-    LogBit::Proof logbit_proof;
+    ECPoint T1;
+    ECPoint T2;
+    BigInt t;
+    BigInt tau;
+    BigInt mu;
+    InnerProduct::Proof ip_proof;
 };
  
 
@@ -89,408 +83,250 @@ struct Proof
 PP Setup(size_t N)
 {
     PP pp; 
-
-    srand(time(0));
-    pp.k = rand() % N;
-    pp.h = GenRandomGenerator();
-    pp.g = GenRandomGenerator();
-    pp.u = GenRandomGenerator();
-    pp.u_new = GenRandomGenerator();
+    
+    pp.g = generator;
+    pp.h = Hash::StringToECPoint(pp.g.ToByteString());
     pp.vec_g = GenRandomECPointVector(N);
     pp.vec_h = GenRandomECPointVector(N);
-    pp.vec_g_mk = GenRandomECPointVector(log2(N) * pp.k);
+    pp.u = GenRandomGenerator();
+    pp.u_new = GenRandomGenerator();
 
     return pp; 
 }
+  
 
 Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcript_str)
-{    
+{
     Proof proof;
 
     size_t N = pp.vec_g.size();
-    size_t m = log2(N);
-    size_t k = pp.k;
-    size_t mk = m * k;
 
-    // compute vec_L
-    std::vector<BigInt> vec_L(mk, bn_0);
+    // choose alpha beta rho
+    std::vector<BigInt> vec_alpha = GenRandomBigIntVectorLessThan(N,order);
+    std::vector<BigInt> vec_beta = GenRandomBigIntVectorLessThan(N,order);
+    BigInt rho = GenRandomBigIntLessThan(order);
 
-    for(auto i=0;i<k;i++){
-        std::vector<size_t> vec_li = Decompose(witness.vec_l[i], 2, m);
-        for(auto j=0;j<m;j++){
-            vec_L[m*i+j] = vec_li[j];
-        }
+    // compute A
+    proof.A = pp.u * rho;
+    for(auto i=0;i<N;i++){
+        proof.A += pp.vec_g[i] * vec_alpha[i];
+        proof.A += pp.vec_h[i] * vec_beta[i];
     }
 
-    // compute vec_s
-    std::vector<BigInt> vec_s(N, bn_0);
-    for(auto i=0;i<k;i++){
-        vec_s[witness.vec_l[i]] = bn_1;
+    // compute y,z
+    transcript_str += proof.A.ToByteString();
+    BigInt y = Hash::StringToBigInt(transcript_str);
+
+    transcript_str += proof.A.ToByteString();
+    BigInt z = Hash::StringToBigInt(transcript_str);
+    BigInt z_square = z.ModSquare(order);
+    BigInt z_cubic = z_square * z % order;
+
+    // prepare the vector polynomials -- APGC Page 10 Figure 2
+    
+    // compute l(X)
+    std::vector<BigInt> vec_z_unary(N, z);
+    std::vector<BigInt> poly_ll0 = BigIntVectorModSub(witness.vec_a, vec_z_unary, BigInt(order));  
+    std::vector<BigInt> poly_ll1(N); 
+    poly_ll1 = vec_alpha; 
+
+    // compute r(X)     
+    std::vector<BigInt> vec_y_power = GenBigIntPowerVector(N, y); 
+    std::vector<BigInt> vec_zz_temp = BigIntVectorModAdd(vec_z_unary, witness.vec_b, BigInt(order)); 
+    std::vector<BigInt> poly_rr0 = BigIntVectorModProduct(vec_y_power, vec_zz_temp, BigInt(order)); 
+    std::vector<BigInt> poly_rr1 = BigIntVectorModProduct(vec_y_power, vec_beta, BigInt(order));
+    std::vector<BigInt> vec_z_square(N, z_square);
+    poly_rr0 = BigIntVectorModAdd(poly_rr0, vec_z_square, BigInt(order));
+    // compute t(X) 
+    BigInt t0 = BigIntVectorModInnerProduct(poly_ll0, poly_rr0, BigInt(order)); 
+    BigInt bn_temp1 = BigIntVectorModInnerProduct(poly_ll1, poly_rr0, BigInt(order)); 
+    BigInt bn_temp2 = BigIntVectorModInnerProduct(poly_ll0, poly_rr1, BigInt(order));
+    BigInt t1 = (bn_temp1 + bn_temp2) % BigInt(order);  
+    BigInt t2 = BigIntVectorModInnerProduct(poly_ll1, poly_rr1, BigInt(order));
+
+    //t0.Print("t0");
+
+    // compute T1,T2
+    BigInt tau1 = GenRandomBigIntLessThan(order);
+    BigInt tau2 = GenRandomBigIntLessThan(order);
+
+    proof.T1 = pp.g * t1 + pp.h * tau1; 
+    proof.T2 = pp.g * t2 + pp.h * tau2; 
+
+    // compute x
+    transcript_str += proof.T1.ToByteString();
+    transcript_str += proof.T2.ToByteString();           
+
+    BigInt x = Hash::StringToBigInt(transcript_str);
+
+    BigInt x_square = x.ModSquare(order);   
+
+    // compute the value of l(x) and r(x) at point x
+    vec_zz_temp = BigIntVectorModScalar(poly_ll1, x, BigInt(order));
+    std::vector<BigInt> llx = BigIntVectorModAdd(poly_ll0, vec_zz_temp, BigInt(order));
+
+    vec_zz_temp = BigIntVectorModScalar(poly_rr1, x, BigInt(order)); 
+    std::vector<BigInt> rrx = BigIntVectorModAdd(poly_rr0, vec_zz_temp, BigInt(order));
+
+    // compute t
+    proof.t = BigIntVectorModInnerProduct(llx, rrx, BigInt(order)); 
+ 
+    // compute taux
+    proof.tau = ((tau1 * x % order) + (tau2 * x_square % order)) % order;
+
+    // compute mu 
+    proof.mu = (witness.r + rho * x % order) % order;
+
+    // compute vec_h_new
+    BigInt y_inverse = y.ModInverse(order);
+    std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(N, y_inverse);
+
+    std::vector<ECPoint> vec_h_new(N);
+    for(auto i=0;i<N;i++){
+        vec_h_new[i] = pp.vec_h[i] * vec_y_inverse_power[i];
     }
-
-    // choose rB,rP
-    BigInt rB = GenRandomBigIntLessThan(order);
-    BigInt rP = GenRandomBigIntLessThan(order);
-
+    
     // compute B
-    proof.B = pp.u * rB;
-    for(auto i=0;i<mk;i++){
-        proof.B += pp.vec_g_mk[i] * vec_L[i];
-    }
-
-    // compute P
-    proof.P = pp.u * rP;
+    ECPoint B = instance.P + proof.A * x;
     for(auto i=0;i<N;i++){
-        proof.P += pp.vec_g[i] * vec_s[i];
-        proof.P += pp.vec_h[i] * ((vec_s[i] - bn_1 + order) % order);
+        B += vec_h_new[i] * (z * vec_y_power[i] % order + z_square % order);
+        B += pp.vec_g[i] * z.ModNegate(order);
     }
-
-    // Lin Bit Proof
-    LinBit::PP linbit_pp = LinBit::Setup(mk);
-    linbit_pp.h = pp.u;
-    linbit_pp.vec_g = pp.vec_g_mk;
     
-    LinBit::Instance linbit_instance; 
-    linbit_instance.P = proof.B;
+    // prepare u for ip
+    ECPoint P_temp = B + (pp.u * proof.mu).Invert();
+
+    transcript_str += P_temp.ToByteString() + proof.t.ToByteString();
+    BigInt x_new = Hash::StringToBigInt(transcript_str);
+
+    ECPoint u_ip = pp.u_new * x_new;
+
+    // inner product proof
+    // set ip pp
+    InnerProduct::PP ip_pp = InnerProduct::Setup(N, true); 
+    ip_pp.vec_g = pp.vec_g;
+    ip_pp.vec_h = vec_h_new;
+    ip_pp.u = u_ip;
+
+    // set ip witness
+    InnerProduct::Witness ip_witness;
+    ip_witness.vec_a = llx; 
+    ip_witness.vec_b = rrx;
+
+    // set ip instance    
+    InnerProduct::Instance ip_instance;
+    ip_instance.P = P_temp + ip_pp.u * proof.t;  
+
+    InnerProduct::Prove(ip_pp, ip_instance, ip_witness, transcript_str, proof.ip_proof);  
     
-    LinBit::Witness linbit_witness;
-    linbit_witness.vec_a.resize(mk);
-    linbit_witness.vec_a = vec_L;
-    linbit_witness.r = rB;
-
-    std::string transcript_str_linbit = "";
-    
-    LinBit::Proof LB_proof = LinBit::Prove(linbit_pp, linbit_instance, linbit_witness, transcript_str_linbit);
-
-    proof.A = LB_proof.A;
-    proof.C = LB_proof.C;
-    proof.D = LB_proof.D;
-    proof.zA = LB_proof.zA;
-    proof.zC = LB_proof.zC;
-    proof.vec_f.resize(mk);
-    proof.vec_f = LB_proof.vec_f;
-    
-    std::vector<BigInt> vec_a(mk);
-    vec_a = LB_proof.vec_a;
-
-    // computer the challenge e
-    std::string str = "";
-    str += proof.A.ToByteString();
-    str += proof.B.ToByteString();
-    str += proof.C.ToByteString();
-    str += proof.D.ToByteString();
-    str += proof.P.ToByteString();
-
-    BigInt e = Hash::StringToBigInt(str);
-
-    // choose vec_rho
-    std::vector<BigInt> vec_rho = GenRandomBigIntVectorLessThan(m,order);
-    
-    // choose vec_alpha
-    std::vector<BigInt> vec_alpha = GenRandomBigIntVectorLessThan(m,order);
-
-    //compute p_i,j,d
-    std::vector<std::vector<std::vector<BigInt>>> P;
-    for(auto i=0;i<k;i++){
-        std::vector<std::vector<BigInt>> Pi; 
-        for(auto j = 0; j < N; j++){
-            std::vector<std::vector<BigInt>> A(m, std::vector<BigInt>(2));        
-            // prepare m ploynomial of form ax+b
-            std::vector<size_t> vec_index = Decompose(j, 2, m); 
-    
-            for(auto b = 0; b < m; b++){      
-                if(vec_index[b] == 1){
-                    A[b][0] = vec_a[m*i+b];
-                    A[b][1] = vec_L[m*i+b];
-                }
-                else{
-                    A[b][0] = bn_0 - vec_a[m*i+b];
-                    A[b][1] = bn_1 - vec_L[m*i+b];
-                }    
-            } 
-            std::vector<BigInt> p_j = PolyMul(A);
-                
-            Pi.emplace_back(p_j); 
-        }
-        P.emplace_back(Pi);
-    }
-
-    // compute vec_e_k
-    std::vector<BigInt> vec_e_k = GenBigIntPowerVector(k, e);
-
-
-    //compute vec_C_c,vec_C_p
-    proof.vec_C_c.resize(m);
-    proof.vec_C_p.resize(m);
-
-    for(auto d=0; d < m; d++){
-        proof.vec_C_c[d] = pp.g * vec_rho[d];
-        proof.vec_C_p[d] = pp.u * vec_alpha[d];
-
-        for(auto j=0; j<N; j++){
-            BigInt index1 = bn_0;
-            for(auto i=0;i<k;i++){
-                index1 = (index1 + vec_e_k[i] * P[i][j][d] % order) % order;
-            }
-            proof.vec_C_c[d] += instance.vec_c[j] * index1;
-
-            BigInt index2 = bn_0;
-            for(auto i=0;i<k;i++){
-                index2 = (index2 + P[i][j][d]) % order;
-            }
-            proof.vec_C_p[d] += (pp.vec_g[j] + pp.vec_h[j]) * index2;
-        }
-    }
-
-    // compute challenge x
-    std::string str1 = "";
-    str1 += proof.A.ToByteString();
-    str1 += proof.C.ToByteString();
-    str1 += proof.D.ToByteString();
-    BigInt x = Hash::StringToBigInt(str1);
-
-    // prepare vec_x^m
-    std::vector<BigInt> exp_x(m+1);
-    exp_x[0] = bn_1;
-    for(auto i=1;i<=m;i++){
-        exp_x[i] = exp_x[i-1] * x % order;
-    }
-
-    // compute zG
-    BigInt zG_leftleft = bn_0;
-    for(auto i=0;i<k;i++){
-        zG_leftleft = (zG_leftleft + vec_e_k[i] * witness.vec_r[i] % order) % order;
-    }
-
-    BigInt zG_right = bn_0;
-    for(auto d=0;d<m;d++){
-        zG_right = (zG_right + vec_rho[d] * exp_x[d] % order) % order;
-    }
-
-    proof.zG = (zG_leftleft * exp_x[m] % order - zG_right + order) % order;
-
-    // compute zP   
-    BigInt zP_right = bn_0;
-    for(auto d=0;d<m;d++){
-        zP_right = (zP_right + vec_alpha[d] * exp_x[d] % order) % order;
-    }
-
-    proof.zP = (rP * exp_x[m] % order + zP_right) % order;
-
-    // Log Bit Proof
-    // set pp
-    LogBit::PP logbit_pp = LogBit::Setup(N);
-    logbit_pp.g = pp.g;
-    logbit_pp.h = pp.h;
-    logbit_pp.u = pp.u;
-    logbit_pp.u_new = pp.u_new;
-    logbit_pp.vec_g = pp.vec_g;
-    logbit_pp.vec_h = pp.vec_h;
-
-    // set instance
-    LogBit::Instance logbit_instance;
-    logbit_instance.P = proof.P;
-
-    // set witness
-    LogBit::Witness logbit_witness;
-    logbit_witness.r = rP;
-    logbit_witness.vec_a = vec_s;
-    logbit_witness.vec_b.resize(N);
-    for(auto i=0;i<N;i++){
-        logbit_witness.vec_b[i] = (vec_s[i] - bn_1 + order) % order;
-    }
-
-    // set transcript_str
-    std::string logbit_transcript_str = "";
-
-    // compute log_proof
-    proof.logbit_proof = LogBit::Prove(logbit_pp,logbit_instance,logbit_witness,logbit_transcript_str);
-
-
-    std::vector<BigInt> aaa = {x,x};
-    PrintBigIntVector(aaa,"");
-
-    std::vector<BigInt> result(k*N,bn_0);
-    for(auto i=0;i<k;i++){
-        BigInt pij = bn_0;
-        for(auto j=0;j<N;j++){
-            BigInt res = bn_0;
-            for(auto d=0;d<=m;d++){
-                res = (res + exp_x[d] * P[i][j][d] % order) % order;
-            }
-            result[i*N+j] = res;
-        }
-    }
-    PrintBigIntVector(result ,"");
-    std::cout<<"here"<<std::endl;
-
-
-
     return proof;
 
 }
 
+
 bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof)
 {
     size_t N = pp.vec_g.size();
-    size_t m = log2(N);
-    size_t k = pp.k;
-    size_t mk = m * k;
-
-    // computer the challenge e
-    std::string str = "";
-    str += proof.A.ToByteString();
-    str += proof.B.ToByteString();
-    str += proof.C.ToByteString();
-    str += proof.D.ToByteString();
-    str += proof.P.ToByteString();
-
-    BigInt e = Hash::StringToBigInt(str);
-
-    // compute challenge x
-    std::string str1 = "";
-    str1 += proof.A.ToByteString();
-    str1 += proof.C.ToByteString();
-    str1 += proof.D.ToByteString();
-    BigInt x = Hash::StringToBigInt(str1);
-
-    std::vector<BigInt> aaa = {x,x};
-    PrintBigIntVector(aaa,"");
-    // compute p_i,j(x)
-    std::vector<std::vector<BigInt>> P_ij(k, std::vector<BigInt>(N));
-    for(auto i=0;i<k;i++){
-        //compute p_j(x)
-        std::vector<BigInt> vec_P = GenRandomBigIntVectorLessThan(N,order); 
-
-        for(auto j = 0; j < N; j++){
-            vec_P[j] = bn_1;
-            std::vector<size_t> vec_index = Decompose(j, 2, m); 
     
-            for(auto b = 0; b < m; b++){        
-                if(vec_index[b] == 1){
-                    vec_P[j] = vec_P[j] * proof.vec_f[i*m+b] % order;
-                }
-                else{
-                    vec_P[j] = vec_P[j] * ((x - proof.vec_f[i*m+b] + order) % order) % order;
-                }    
-            } 
-        }
-        P_ij.emplace_back(vec_P);
-        PrintBigIntVector(vec_P,"");
-    }
+    std::vector<bool> vec_condition(2, false);
 
-    // prepare vec_x^m
-    std::vector<BigInt> exp_x(m+1);
-    exp_x[0] = bn_1;
-    for(auto i=1;i<=m;i++){
-        exp_x[i] = exp_x[i-1] * x % order;
-    }
+    // compute y,z,x
+    transcript_str += proof.A.ToByteString();
+    BigInt y = Hash::StringToBigInt(transcript_str);
+
+    transcript_str += proof.A.ToByteString();
+    BigInt z = Hash::StringToBigInt(transcript_str);
+
+    BigInt z_square = z.ModSquare(order);
+    BigInt z_cubic = z_square * z % order;
     
-    // compute vec_e_k
-    std::vector<BigInt> vec_e_k = GenBigIntPowerVector(k, e);
+    transcript_str += proof.T1.ToByteString() + proof.T2.ToByteString();
+    BigInt x = Hash::StringToBigInt(transcript_str);
 
-    // compute P_new
-    ECPoint P_new_l = pp.vec_h[0];
-    for(auto i=1;i<N;i++){
-        P_new_l += pp.vec_h[i];
-    } 
-    P_new_l = P_new_l * (bn_0 - exp_x[m] + order);
+    // compute y power
+    std::vector<BigInt> vec_y_power = GenBigIntPowerVector(N, y); // y^nm
 
-    ECPoint P_new_m = P_new_l;
-    for(auto j=0;j<N;j++){
-        BigInt index = bn_0;
-        for(auto i=0;i<k;i++){
-            index = (index + P_ij[i][j]) % order;
-        }
-        P_new_m += (pp.vec_g[j] + pp.vec_h[j]) * index;
+    // compute vec_h_new
+    BigInt y_inverse = y.ModInverse(order);
+    std::vector<BigInt> vec_y_inverse_power = GenBigIntPowerVector(N, y_inverse);
+
+    std::vector<ECPoint> vec_h_new(N);
+    for(auto i=0;i<N;i++){
+        vec_h_new[i] = pp.vec_h[i] * vec_y_inverse_power[i];
+    }   
+
+    // compute B
+    ECPoint B = instance.P + proof.A * x;
+    for(auto i=0;i<N;i++){
+        B += vec_h_new[i] * (z * vec_y_power[i] % order + z_square % order);
+        
+        B += pp.vec_g[i] * z.ModNegate(order);
     }
 
-    ECPoint P_new_r = P_new_m;
-    for(auto d=0;d<m;d++){
-        P_new_r += proof.vec_C_p[d] * (bn_0 - exp_x[d] + order);
-    }
+    // prepare u for ip
+    ECPoint P_temp = B + (pp.u * proof.mu).Invert();
 
-    ECPoint P_new = P_new_r;
+    transcript_str += P_temp.ToByteString() + proof.t.ToByteString();
+    BigInt x_new = Hash::StringToBigInt(transcript_str);
 
-    // compute G
-    ECPoint G_l = P_new;
-    for(auto j=0;j<N;j++){
-        BigInt index = bn_0;
-        for(auto i=0;i<k;i++){
-            index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
-        }
-        G_l += instance.vec_c[j] * index;
-    }
-    G_l -= P_new;
+    ECPoint u_ip = pp.u_new * x_new;
+    
+    // prepare
+    std::vector<BigInt> vec_1_power(N, bn_1); 
+ 
 
-    ECPoint G_r = proof.vec_C_c[0] * (bn_0 - exp_x[0] + order);
-    for(auto d=1;d<m;d++){
-        G_r += proof.vec_C_c[d] * (bn_0 - exp_x[d] + order);
-    }
+    // compute delta_yz -- APGC Page 8 eq(2): 2^n -> 0 for vec_w = 0    
+    BigInt bn_temp1 = BigIntVectorModInnerProduct(vec_1_power, vec_y_power, BigInt(order)); 
+    BigInt delta_yz = z.ModSub(z_square, order) * bn_temp1 % order; 
+    BigInt z_cubic_multi_n = z_cubic * BigInt(N) % order;
+    delta_yz = delta_yz.ModSub(z_cubic_multi_n, order);
 
-    ECPoint G = G_l + G_r;
 
-    // start verify
-    std::vector<bool> vec_condition(4, false);
+    //delta_yz.Print("delta_yz");
+
+    // BigInt test = z_square * instance.k % order;
+    // delta_yz = delta_yz.ModAdd(test, order);
+
+    // delta_yz.Print("delta_yz");
+
 
     // check condition 1
-    LogBit::PP logbit_pp = LogBit::Setup(N);
-    logbit_pp.g = pp.g;
-    logbit_pp.h = pp.h;
-    logbit_pp.u = pp.u;
-    logbit_pp.u_new = pp.u_new;
-    logbit_pp.vec_g = pp.vec_g;
-    logbit_pp.vec_h = pp.vec_h;
+    
+    // inner product proof
+    // set ip pp
+    InnerProduct::PP ip_pp = InnerProduct::Setup(N, true);
+    ip_pp.vec_g = pp.vec_g;
+    ip_pp.vec_h = vec_h_new;
+    ip_pp.u = u_ip;
 
-    LogBit::Instance logbit_instance;
-    logbit_instance.P = proof.P;
+    // set ip instance
+    InnerProduct::Instance ip_instance;
+    ip_instance.P = P_temp + ip_pp.u * proof.t;    
 
-    std::string logbit_transcript_str = "";
-
-    vec_condition[0] = LogBit::Verify(logbit_pp,logbit_instance,logbit_transcript_str,proof.logbit_proof);
-
+ 
+    vec_condition[0] = InnerProduct::Verify(ip_pp, ip_instance, transcript_str, proof.ip_proof);  
+    
     // check condition 2
-    LinBit::PP linbit_pp = LinBit::Setup(mk);
-    linbit_pp.h = pp.u;
-    linbit_pp.vec_g = pp.vec_g_mk;
-    
-    LinBit::Instance linbit_instance; 
-    linbit_instance.P = proof.B;
-    
-    LinBit::Proof linbit_proof;
-    linbit_proof.A = proof.A;
-    linbit_proof.C = proof.C;
-    linbit_proof.D = proof.D;
-    linbit_proof.zA = proof.zA;
-    linbit_proof.zC = proof.zC;
-    linbit_proof.vec_f.resize(mk);
-    for(auto i=0;i<mk;i++){
-        linbit_proof.vec_f[i] = proof.vec_f[i];
-    }
-    
-    std::string transcript_str_linbit = "";
-    vec_condition[1] = LinBit::Verify(linbit_pp, linbit_instance, transcript_str_linbit, linbit_proof);
-    
-    // check condition 3
-    vec_condition[2] = (G == pp.g * proof.zG);
+    // left
+    ECPoint left = pp.g * proof.t + pp.h * proof.tau;
 
-    // check condition 4
-    vec_condition[3] = (proof.P * exp_x[m] + P_new.Invert() == pp.u * proof.zP);
+    // right
+    ECPoint right = pp.g * delta_yz + proof.T1 * x + proof.T2 * x.ModSquare(order) + pp.g * ((z_square * instance.k) % order);
 
-    // check result
-    bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2] && vec_condition[3] ;
+    vec_condition[1] = (left == right);
 
+    bool Validity = vec_condition[0] && vec_condition[1];
 
     #ifdef DEBUG
-    for(auto i = 0; i < 4; i++){
-        std::cout << std::boolalpha << "Condition "<< std::to_string(i) <<" (Koon proof) = " 
+    for(auto i = 0; i < 2; i++){
+        std::cout << std::boolalpha << "Condition "<< std::to_string(i) <<" (Log Bit proof) = " 
                   << vec_condition[i] << std::endl; 
     }
 
     if (Validity){ 
-        std::cout << "NIZK proof for Koon accepts >>>" << std::endl; 
+        std::cout << "NIZK proof for k Bit accepts >>>" << std::endl; 
     } else {
-        std::cout << "NIZK proof for Koon rejects >>>" << std::endl; 
+        std::cout << "NIZK proof for k Bit rejects >>>" << std::endl; 
     }
     #endif
 
@@ -500,6 +336,3 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 }
 
 #endif
-
-
-
