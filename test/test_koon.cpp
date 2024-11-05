@@ -19,22 +19,33 @@ void GenRandomInstanceWitness(Koon::PP &pp, Koon::Instance &instance,
     size_t m = log2(N);
 
     witness.vec_r = GenRandomBigIntVectorLessThan(pp.k, order);
+    witness.vec_l.resize(pp.k);
 
-    srand(time(0));
+
+    // srand(time(0));
     witness.vec_l[0] = rand() % N;
-    for(auto i=1;i<pp.k;i++){
+    // std::cout<<pp.k<<std::endl;
+
+    size_t count = 1;
+    while(count < pp.k){
+        size_t temp = rand() % N;
         bool flag = true;
-        do{
-            size_t temp = rand() % N;
-            for(auto j=0;j<i;j++){
-                if(temp == witness.vec_l[j]){
-                    flag = false;
-                    break;
-                }
+        for(auto i=0;i<count;i++){
+            if(witness.vec_l[i] == temp){
+                flag = false;
+                break;
             }
-        }while(flag == false);
+        }
+        if(flag == true){
+            witness.vec_l[count] = temp;
+            count++;
+        }
     }
 
+    // for(auto i=0;i<pp.k;i++){
+    //     std::cout<<witness.vec_l[i]<<std::endl;
+    // }
+    
     instance.vec_c = GenRandomECPointVector(N);
     for(auto i=0;i<pp.k;i++){
         instance.vec_c[witness.vec_l[i]] = pp.g * witness.vec_r[i];
@@ -61,7 +72,7 @@ void test_nizk_koon(bool flag)
 
 
     GenRandomInstanceWitness(pp, instance, witness, flag);
-
+    
     auto start_time = std::chrono::steady_clock::now(); // start to count the time
     transcript_str = "";
     Koon::Proof proof = Koon::Prove(pp, instance, witness, transcript_str);
@@ -69,7 +80,6 @@ void test_nizk_koon(bool flag)
     auto running_time = end_time - start_time;
     std::cout << "Koon proof generation takes time = " 
     << std::chrono::duration <double, std::milli> (running_time).count() << " ms" << std::endl;
-
 
     start_time = std::chrono::steady_clock::now(); // start to count the time
     transcript_str = "";
@@ -88,7 +98,7 @@ int main()
     CRYPTO_Initialize();  
     
     test_nizk_koon(true);
-    test_nizk_koon(false); 
+    // test_nizk_koon(false); 
 
     CRYPTO_Finalize(); 
 

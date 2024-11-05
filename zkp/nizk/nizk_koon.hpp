@@ -8,6 +8,7 @@
 #include "../../commitment/pedersen.hpp"
 #include "../../utility/polymul.hpp"
 #include "../../zkp/nizk/nizk_lin_bit.hpp"
+#include "../../zkp/nizk/nizk_log_bit.hpp"
 
 
 namespace Koon{
@@ -46,6 +47,8 @@ struct PP
     std::vector<ECPoint> vec_g;
     std::vector<ECPoint> vec_h;
     std::vector<ECPoint> vec_g_mk;
+    // for log bit
+    ECPoint u_new;
     
 };
 
@@ -78,6 +81,7 @@ struct Proof
     BigInt zC;
     BigInt zG;
     BigInt zP;
+    LogBit::Proof logbit_proof;
 };
  
 
@@ -88,9 +92,11 @@ PP Setup(size_t N)
 
     srand(time(0));
     pp.k = rand() % N;
+    // pp.k = 7;
     pp.h = GenRandomGenerator();
     pp.g = GenRandomGenerator();
     pp.u = GenRandomGenerator();
+    pp.u_new = GenRandomGenerator();
     pp.vec_g = GenRandomECPointVector(N);
     pp.vec_h = GenRandomECPointVector(N);
     pp.vec_g_mk = GenRandomECPointVector(log2(N) * pp.k);
@@ -113,7 +119,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     for(auto i=0;i<k;i++){
         std::vector<size_t> vec_li = Decompose(witness.vec_l[i], 2, m);
         for(auto j=0;j<m;j++){
-            vec_L[k*i+j] = vec_li[j];
+            vec_L[m*i+j] = vec_li[j];
         }
     }
 
@@ -137,7 +143,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.P = pp.u * rP;
     for(auto i=0;i<N;i++){
         proof.P += pp.vec_g[i] * vec_s[i];
-        proof.P += pp.vec_h[i] * (vec_s[i] - bn_1);//here 这里很多指数会是-1,可能会有问题
+        proof.P += pp.vec_h[i] * ((vec_s[i] - bn_1 + order) % order);//here 这里很多指数会是-1,可能会有问题
     }
 
     // Lin Bit Proof
@@ -195,12 +201,12 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     
             for(auto b = 0; b < m; b++){      
                 if(vec_index[b] == 1){
-                    A[b][0] = vec_a[k*i+b];
-                    A[b][1] = vec_L[k*i+b];
+                    A[b][0] = vec_a[m*i+b];
+                    A[b][1] = vec_L[m*i+b];
                 }
                 else{
-                    A[b][0] = bn_0 - vec_a[k*i+b];
-                    A[b][1] = bn_1 - vec_L[k*i+b];
+                    A[b][0] = bn_0 - vec_a[m*i+b];
+                    A[b][1] = bn_1 - vec_L[m*i+b];
                 }    
             } 
             std::vector<BigInt> p_j = PolyMul(A);
@@ -273,8 +279,33 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.zP = (rP * exp_x[m] % order + zP_right) % order;
 
     // Log Bit Proof
-    
+    // set pp
+    LogBit::PP logbit_pp = LogBit::Setup(N);
+    logbit_pp.g = pp.g;
+    logbit_pp.h = pp.h;
+    logbit_pp.u = pp.u;
+    logbit_pp.u_new = pp.u_new;
+    logbit_pp.vec_g = pp.vec_g;
+    logbit_pp.vec_h = pp.vec_h;
 
+    // set instance
+    LogBit::Instance logbit_instance;
+    logbit_instance.P = proof.P;
+
+    // set witness
+    LogBit::Witness logbit_witness;
+    logbit_witness.r = rP;
+    logbit_witness.vec_a = vec_s;
+    logbit_witness.vec_b.resize(N);
+    for(auto i=0;i<N;i++){
+        logbit_witness.vec_b[i] = (vec_s[i] - bn_1 + order) % order;
+    }
+
+    // set transcript_str
+    std::string logbit_transcript_str = "";
+
+    // compute log_proof
+    proof.logbit_proof = LogBit::Prove(logbit_pp,logbit_instance,logbit_witness,logbit_transcript_str);
 
     return proof;
 
@@ -316,10 +347,10 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     
             for(auto b = 0; b < m; b++){        
                 if(vec_index[b] == 1){
-                    vec_P[j] = vec_P[j] * proof.vec_f[i*k+b] % order;
+                    vec_P[j] = vec_P[j] * proof.vec_f[i*m+b] % order;
                 }
                 else{
-                    vec_P[j] = vec_P[j] * ((x - proof.vec_f[i*k+b] + order) % order) % order;
+                    vec_P[j] = vec_P[j] * ((x - proof.vec_f[i*m+b] + order) % order) % order;
                 }    
             } 
         }
@@ -378,14 +409,29 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
     ECPoint G = G_l + G_r;
 
+    // start verify
     std::vector<bool> vec_condition(4, false);
 
+    // check condition 1
+    LogBit::PP logbit_pp = LogBit::Setup(N);
+    logbit_pp.g = pp.g;
+    logbit_pp.h = pp.h;
+    logbit_pp.u = pp.u;
+    logbit_pp.u_new = pp.u_new;
+    logbit_pp.vec_g = pp.vec_g;
+    logbit_pp.vec_h = pp.vec_h;
+
+    LogBit::Instance logbit_instance;
+    logbit_instance.P = proof.P;
+
+    std::string logbit_transcript_str = "";
+
+    vec_condition[0] = LogBit::Verify(logbit_pp,logbit_instance,logbit_transcript_str,proof.logbit_proof);
+
     // check condition 2
-    LinBit::PP linbit_pp = LinBit::Setup(m);
+    LinBit::PP linbit_pp = LinBit::Setup(mk);
     linbit_pp.h = pp.u;
-    for(auto i=0;i<m;i++){
-        linbit_pp.vec_g[i] = pp.vec_g[i];
-    }
+    linbit_pp.vec_g = pp.vec_g_mk;
     
     LinBit::Instance linbit_instance; 
     linbit_instance.P = proof.B;
@@ -396,13 +442,13 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     linbit_proof.D = proof.D;
     linbit_proof.zA = proof.zA;
     linbit_proof.zC = proof.zC;
-    linbit_proof.vec_f = GenRandomBigIntVectorLessThan(m,order);
-    for(auto i=0;i<m;i++){
+    linbit_proof.vec_f.resize(mk);
+    for(auto i=0;i<mk;i++){
         linbit_proof.vec_f[i] = proof.vec_f[i];
     }
     
     std::string transcript_str_linbit = "";
-    vec_condition[0] = LinBit::Verify(linbit_pp, linbit_instance, transcript_str_linbit, linbit_proof);
+    vec_condition[1] = LinBit::Verify(linbit_pp, linbit_instance, transcript_str_linbit, linbit_proof);
     
     // check condition 3
     vec_condition[2] = (G == pp.g * proof.zG);
@@ -410,13 +456,12 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     // check condition 4
     vec_condition[3] = (proof.P * exp_x[m] + P_new.Invert() == pp.u * proof.zP);
 
-
-
+    // check result
     bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2] && vec_condition[3] ;
 
 
     #ifdef DEBUG
-    for(auto i = 0; i < 2; i++){
+    for(auto i = 0; i < 4; i++){
         std::cout << std::boolalpha << "Condition "<< std::to_string(i) <<" (Koon proof) = " 
                   << vec_condition[i] << std::endl; 
     }
