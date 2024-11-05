@@ -92,7 +92,6 @@ PP Setup(size_t N)
 
     srand(time(0));
     pp.k = rand() % N;
-    // pp.k = 7;
     pp.h = GenRandomGenerator();
     pp.g = GenRandomGenerator();
     pp.u = GenRandomGenerator();
@@ -143,7 +142,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.P = pp.u * rP;
     for(auto i=0;i<N;i++){
         proof.P += pp.vec_g[i] * vec_s[i];
-        proof.P += pp.vec_h[i] * ((vec_s[i] - bn_1 + order) % order);//here 这里很多指数会是-1,可能会有问题
+        proof.P += pp.vec_h[i] * ((vec_s[i] - bn_1 + order) % order);
     }
 
     // Lin Bit Proof
@@ -244,11 +243,11 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     }
 
     // compute challenge x
-    for(auto i=0;i<m;i++){
-        transcript_str += proof.vec_C_c[i].ToByteString() + proof.vec_C_p[i].ToByteString();
-    }
-
-    BigInt x = Hash::StringToBigInt(transcript_str);
+    std::string str1 = "";
+    str1 += proof.A.ToByteString();
+    str1 += proof.C.ToByteString();
+    str1 += proof.D.ToByteString();
+    BigInt x = Hash::StringToBigInt(str1);
 
     // prepare vec_x^m
     std::vector<BigInt> exp_x(m+1);
@@ -260,12 +259,12 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     // compute zG
     BigInt zG_leftleft = bn_0;
     for(auto i=0;i<k;i++){
-        zG_leftleft += vec_e_k[i] * witness.vec_r[i] % order;
+        zG_leftleft = (zG_leftleft + vec_e_k[i] * witness.vec_r[i] % order) % order;
     }
 
     BigInt zG_right = bn_0;
     for(auto d=0;d<m;d++){
-        zG_right += vec_rho[d] * exp_x[d] % order;
+        zG_right = (zG_right + vec_rho[d] * exp_x[d] % order) % order;
     }
 
     proof.zG = (zG_leftleft * exp_x[m] % order - zG_right + order) % order;
@@ -273,7 +272,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     // compute zP   
     BigInt zP_right = bn_0;
     for(auto d=0;d<m;d++){
-        zP_right += vec_alpha[d] * exp_x[d] % order;
+        zP_right = (zP_right + vec_alpha[d] * exp_x[d] % order) % order;
     }
 
     proof.zP = (rP * exp_x[m] % order + zP_right) % order;
@@ -307,6 +306,26 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     // compute log_proof
     proof.logbit_proof = LogBit::Prove(logbit_pp,logbit_instance,logbit_witness,logbit_transcript_str);
 
+
+    std::vector<BigInt> aaa = {x,x};
+    PrintBigIntVector(aaa,"");
+
+    std::vector<BigInt> result(k*N,bn_0);
+    for(auto i=0;i<k;i++){
+        BigInt pij = bn_0;
+        for(auto j=0;j<N;j++){
+            BigInt res = bn_0;
+            for(auto d=0;d<=m;d++){
+                res = (res + exp_x[d] * P[i][j][d] % order) % order;
+            }
+            result[i*N+j] = res;
+        }
+    }
+    PrintBigIntVector(result ,"");
+    std::cout<<"here"<<std::endl;
+
+
+
     return proof;
 
 }
@@ -329,12 +348,14 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     BigInt e = Hash::StringToBigInt(str);
 
     // compute challenge x
-    for(auto i=0;i<m;i++){
-        transcript_str += proof.vec_C_c[i].ToByteString() + proof.vec_C_p[i].ToByteString();
-    }
+    std::string str1 = "";
+    str1 += proof.A.ToByteString();
+    str1 += proof.C.ToByteString();
+    str1 += proof.D.ToByteString();
+    BigInt x = Hash::StringToBigInt(str1);
 
-    BigInt x = Hash::StringToBigInt(transcript_str);
-
+    std::vector<BigInt> aaa = {x,x};
+    PrintBigIntVector(aaa,"");
     // compute p_i,j(x)
     std::vector<std::vector<BigInt>> P_ij(k, std::vector<BigInt>(N));
     for(auto i=0;i<k;i++){
@@ -355,6 +376,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
             } 
         }
         P_ij.emplace_back(vec_P);
+        PrintBigIntVector(vec_P,"");
     }
 
     // prepare vec_x^m
@@ -372,39 +394,38 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     for(auto i=1;i<N;i++){
         P_new_l += pp.vec_h[i];
     } 
-    P_new_l = P_new_l * exp_x[m].ModNegate(order);
+    P_new_l = P_new_l * (bn_0 - exp_x[m] + order);
 
     ECPoint P_new_m = P_new_l;
     for(auto j=0;j<N;j++){
         BigInt index = bn_0;
         for(auto i=0;i<k;i++){
-            index = index + P_ij[i][j] % order;
+            index = (index + P_ij[i][j]) % order;
         }
         P_new_m += (pp.vec_g[j] + pp.vec_h[j]) * index;
     }
-    P_new_m -= P_new_l;
 
     ECPoint P_new_r = P_new_m;
     for(auto d=0;d<m;d++){
-        P_new_r += proof.vec_C_p[d] * exp_x[d].ModNegate(order);
+        P_new_r += proof.vec_C_p[d] * (bn_0 - exp_x[d] + order);
     }
 
-    ECPoint P_new = P_new_l + P_new_m + P_new_r;
+    ECPoint P_new = P_new_r;
 
     // compute G
     ECPoint G_l = P_new;
     for(auto j=0;j<N;j++){
         BigInt index = bn_0;
         for(auto i=0;i<k;i++){
-            index += vec_e_k[i] * P_ij[i][j] % order;
+            index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
         }
         G_l += instance.vec_c[j] * index;
     }
     G_l -= P_new;
 
-    ECPoint G_r = proof.vec_C_c[0] * exp_x[0].ModNegate(order);
+    ECPoint G_r = proof.vec_C_c[0] * (bn_0 - exp_x[0] + order);
     for(auto d=1;d<m;d++){
-        G_r += proof.vec_C_c[d] * exp_x[d].ModNegate(order);
+        G_r += proof.vec_C_c[d] * (bn_0 - exp_x[d] + order);
     }
 
     ECPoint G = G_l + G_r;
