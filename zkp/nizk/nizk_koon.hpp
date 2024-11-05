@@ -31,10 +31,12 @@ std::vector<BigInt> GenBigIntPowerVector(size_t LEN, const BigInt &a)
 std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
 {
     std::vector<size_t> vec_index(m); 
+    //std::vector<size_t> vec_ans(m);
     for(auto j = 0; j < m; j++){
         vec_index[j] = l % n;  
         l = l / n; 
     }
+    reverse(vec_index.begin(),vec_index.end());
     return vec_index;  
 } 
 
@@ -91,7 +93,8 @@ PP Setup(size_t N)
     PP pp; 
 
     srand(time(0));
-    pp.k = rand() % N;
+    //pp.k = rand() % N;
+    pp.k = 1;
     pp.h = GenRandomGenerator();
     pp.g = GenRandomGenerator();
     pp.u = GenRandomGenerator();
@@ -268,7 +271,10 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     }
 
     proof.zG = (zG_leftleft * exp_x[m] % order - zG_right + order) % order;
-
+    // ECPoint test = instance.vec_c[0] * exp_x[m] - pp.g * zG_right;
+    // test.Print("test");
+    // ECPoint test2 = pp.g * proof.zG;
+    // test2.Print("test2");
     // compute zP   
     BigInt zP_right = bn_0;
     for(auto d=0;d<m;d++){
@@ -307,7 +313,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     proof.logbit_proof = LogBit::Prove(logbit_pp,logbit_instance,logbit_witness,logbit_transcript_str);
 
 
-    std::vector<BigInt> aaa = {x,x};
+    std::vector<BigInt> aaa = {x,e};
     PrintBigIntVector(aaa,"");
 
     std::vector<BigInt> result(k*N,bn_0);
@@ -321,8 +327,34 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
             result[i*N+j] = res;
         }
     }
-    PrintBigIntVector(result ,"");
+    //PrintBigIntVector(result ,"");
     std::cout<<"here"<<std::endl;
+    ECPoint G_l ;
+    G_l.SetInfinity();
+    for(auto j=0;j<N;j++){
+        BigInt index = bn_0;
+        index = (index +  result[j] % order) % order;
+        result[j].Print("result[j]");
+        // for(auto i=0;i<k;i++){
+        //     index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
+        // }
+        G_l += instance.vec_c[j] * index;
+    }
+
+
+    ECPoint G_r = proof.vec_C_c[0] * (- exp_x[0]);
+    for(auto d=1;d<m;d++){
+        G_r += proof.vec_C_c[d] * (- exp_x[d]);
+    }
+
+    ECPoint G = G_l + G_r;
+    G.Print("G");
+    if(G == pp.g * proof.zG){
+        std::cout<<"G is correct"<<std::endl;
+    }
+    else{
+        std::cout<<"G is wrong"<<std::endl;
+    }
 
 
 
@@ -354,10 +386,11 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     str1 += proof.D.ToByteString();
     BigInt x = Hash::StringToBigInt(str1);
 
-    std::vector<BigInt> aaa = {x,x};
+    std::vector<BigInt> aaa = {x,e};
     PrintBigIntVector(aaa,"");
     // compute p_i,j(x)
-    std::vector<std::vector<BigInt>> P_ij(k, std::vector<BigInt>(N));
+    //std::vector<std::vector<BigInt>> P_ij(k, std::vector<BigInt>(N));
+    std::vector<std::vector<BigInt>> P_ij;
     for(auto i=0;i<k;i++){
         //compute p_j(x)
         std::vector<BigInt> vec_P = GenRandomBigIntVectorLessThan(N,order); 
@@ -394,7 +427,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     for(auto i=1;i<N;i++){
         P_new_l += pp.vec_h[i];
     } 
-    P_new_l = P_new_l * (bn_0 - exp_x[m] + order);
+    P_new_l = P_new_l * (- exp_x[m] );
 
     ECPoint P_new_m = P_new_l;
     for(auto j=0;j<N;j++){
@@ -407,28 +440,33 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
     ECPoint P_new_r = P_new_m;
     for(auto d=0;d<m;d++){
-        P_new_r += proof.vec_C_p[d] * (bn_0 - exp_x[d] + order);
+        P_new_r += proof.vec_C_p[d] * (- exp_x[d]);
     }
 
     ECPoint P_new = P_new_r;
 
     // compute G
-    ECPoint G_l = P_new;
+    //ECPoint G_l = P_new;
+    ECPoint G_l ;
+    G_l.SetInfinity();
     for(auto j=0;j<N;j++){
         BigInt index = bn_0;
-        for(auto i=0;i<k;i++){
-            index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
-        }
+        index = (index +  P_ij[0][j] % order) % order;
+        P_ij[0][j].Print("P_ij[0][j]");
+        // for(auto i=0;i<k;i++){
+        //     index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
+        // }
         G_l += instance.vec_c[j] * index;
     }
-    G_l -= P_new;
+    //G_l -= P_new;
 
-    ECPoint G_r = proof.vec_C_c[0] * (bn_0 - exp_x[0] + order);
+    ECPoint G_r = proof.vec_C_c[0] * (- exp_x[0]);
     for(auto d=1;d<m;d++){
-        G_r += proof.vec_C_c[d] * (bn_0 - exp_x[d] + order);
+        G_r += proof.vec_C_c[d] * (- exp_x[d]);
     }
 
     ECPoint G = G_l + G_r;
+    G.Print("G");
 
     // start verify
     std::vector<bool> vec_condition(4, false);
@@ -472,6 +510,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     vec_condition[1] = LinBit::Verify(linbit_pp, linbit_instance, transcript_str_linbit, linbit_proof);
     
     // check condition 3
+   
     vec_condition[2] = (G == pp.g * proof.zG);
 
     // check condition 4

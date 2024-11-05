@@ -17,30 +17,33 @@ void GenRandomInstanceWitness(Koon::PP &pp, Koon::Instance &instance,
 
     size_t N = pp.vec_g.size();
     size_t m = log2(N);
+    //pp.k = 1;
 
     witness.vec_r = GenRandomBigIntVectorLessThan(pp.k, order);
     witness.vec_l.resize(pp.k);
 
 
     // srand(time(0));
-    witness.vec_l[0] = rand() % N;
+    //witness.vec_l[0] = rand() % N;
+    witness.vec_l[0]=0;
+    std::cout <<"witness.vec_l[0] =" << witness.vec_l[0] << std::endl;
     // std::cout<<pp.k<<std::endl;
 
-    size_t count = 1;
-    while(count < pp.k){
-        size_t temp = rand() % N;
-        bool flag = true;
-        for(auto i=0;i<count;i++){
-            if(witness.vec_l[i] == temp){
-                flag = false;
-                break;
-            }
-        }
-        if(flag == true){
-            witness.vec_l[count] = temp;
-            count++;
-        }
-    }
+    // size_t count = 1;
+    // while(count < pp.k){
+    //     size_t temp = rand() % N;
+    //     bool flag = true;
+    //     for(auto i=0;i<count;i++){
+    //         if(witness.vec_l[i] == temp){
+    //             flag = false;
+    //             break;
+    //         }
+    //     }
+    //     if(flag == true){
+    //         witness.vec_l[count] = temp;
+    //         count++;
+    //     }
+    // }
 
     // for(auto i=0;i<pp.k;i++){
     //     std::cout<<witness.vec_l[i]<<std::endl;
