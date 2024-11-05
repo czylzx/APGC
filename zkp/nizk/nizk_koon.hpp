@@ -36,7 +36,7 @@ std::vector<size_t> Decompose(size_t l, size_t n, size_t m)
         vec_index[j] = l % n;  
         l = l / n; 
     }
-    reverse(vec_index.begin(),vec_index.end());
+    //reverse(vec_index.begin(),vec_index.end());
     return vec_index;  
 } 
 
