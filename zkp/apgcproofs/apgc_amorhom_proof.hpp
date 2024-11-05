@@ -239,7 +239,7 @@ namespace AmorHom
         //std::vector<BigInt> vec_z = BigIntVectorModScalar(witness.vec_y, e, order);     
         EqmdlProduct2:: PP eqmdl_pp = EqmdlProduct2::Setup(pp.n*4, true);
         eqmdl_pp.vec_g = vec_base_new;
-        eqmdl_pp.vec_p = pp.vec_u;
+        eqmdl_pp.vec_p = pp.vec_g;
 
         //PrintECPointVector(eqmdl_pp.vec_g, "eqmdl_pp.vec_g");
         //PrintECPointVector(eqmdl_pp.vec_p, "eqmdl_pp.vec_p");
@@ -329,14 +329,14 @@ namespace AmorHom
 
         EqmdlProduct2:: PP eqmdl_pp = EqmdlProduct2::Setup(pp.n*4, true);
         eqmdl_pp.vec_g = vec_base_new;
-        eqmdl_pp.vec_p = pp.vec_u;
+        eqmdl_pp.vec_p = pp.vec_g;
 
         //PrintECPointVector(eqmdl_pp.vec_g, "vec_g");
         //PrintECPointVector(eqmdl_pp.vec_p, "vec_p");
    
         EqmdlProduct2::Instance eqmdl_instance;
         eqmdl_instance.P = instance.P * e + proof.Ap + pp.u * (-proof.f);
-        eqmdl_instance.G = F_prime * e + proof.Af ;
+        eqmdl_instance.G = proof.Af ;
     
         //eqmdl_instance.P.Print("P");
         //eqmdl_instance.G.Print("G");

@@ -138,7 +138,7 @@ namespace Solvent_Equal
         pp.vec_g2 = GenRandomECPointVector(VECTOR_LEN);
         pp.vec_g3 = GenRandomECPointVector(VECTOR_LEN);
         pp.vec_g4 = GenRandomECPointVector(VECTOR_LEN);
-        pp.vec_h = GenRandomECPointVector(4*VECTOR_LEN);
+        pp.vec_h = GenRandomECPointVector(VECTOR_LEN);
         return pp;
     }
 
