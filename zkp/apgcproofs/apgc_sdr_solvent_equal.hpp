@@ -186,62 +186,6 @@ namespace Solvent_Equal
     return result;
 }
 
-    // std::vector<BigInt> lagrange(std::vector<BigInt> x, std::vector<BigInt> y)
-    // {
-    //     size_t n = x.size();
-    //     if(n != y.size())
-    //     {
-    //         std::cerr << "vector size does not match!" << std::endl;
-    //         exit(EXIT_FAILURE);
-    //     }
-    //     std::vector<BigInt> result(n, bn_0);
-    //     std::vector<BigInt> Xi(2*n+1,bn_0);
-    //     std::vector<BigInt> Fi(2*n+1,bn_0);
-    //     std::vector<BigInt> Xi_temp(2*n+1,bn_0);
-    //     BigInt temp;
-    //     Xi[1] = bn_1;
-    //     Xi[0] = -x[0];
-    //     for(auto i = 2; i <= n; i++)
-    //     {
-    //         Xi[i] = Xi[i-1];
-    //         for(auto j = i-1; j > 0; j--)
-    //         {
-    //             Xi[j] = (Xi[j] * (-x[i-1]) % order + Xi[j-1]) % order;
-    //         }
-    //         Xi[0] = Xi[0] * (-x[i-1]) % order;
-    //     }
-    //     for(auto i = 0; i < n; i++)
-    //     {
-    //         temp = bn_1;
-    //         for(auto j = 0; j < n; j++)
-    //         {
-    //             if(i == j)
-    //             {
-    //                 continue;
-    //             }
-    //             temp = temp * (x[i] - x[j]) % order;
-    //         }
-    //         temp = temp.ModInverse(order);
-    //         temp = y[i] * temp % order;
-
-    //         for(auto j = 0; j <= n; j++)
-    //         {
-    //             Xi_temp[j] = Xi[j];
-    //         }
-    //         for(auto j = n-1; j >= 0; j--)
-    //         {
-    //             Fi[j] = Xi_temp[j+1];
-    //             Xi_temp[j] = (Xi_temp[j] - (Xi_temp[j+1] * (-x[i])) % order) % order;
-    //         }
-
-    //         for(auto j = 0; j < n; j++)
-    //         {
-    //             result[j] = (result[j] + Fi[j] * temp %order) % order;
-    //         }
-            
-    //     }
-    //     return result;     
-    // }
     /*
         Generate an argument PI for Relation 3 on pp.13: P = g^a h^b u^<a,b>
         transcript_str is introduced to be used as a sub-protocol
@@ -332,15 +276,6 @@ namespace Solvent_Equal
             }
         }
 
-        //compute P(x)
-        // std::vector<BigInt> vec_P_x(n);
-        // for(auto j = 0; j < n; j++)
-        // {
-        //     vec_P_x[j] = BigInt(j);
-        // }
-        // std::vector<BigInt> vec_P = lagrange(vec_P_x, vec_s); 
-        //PrintBigIntVector(vec_P, "vec_P");
-        //std::vector<BigInt> vec_a(n);
         std::vector<BigInt> vec_sk(n);
 
         for(auto i =0 ;i < n; i++)
@@ -667,7 +602,11 @@ namespace Solvent_Equal
         {
             V5 = false;
         }
-
+        std::cout << "V1 = " << V1 << std::endl;
+        std::cout << "V2 = " << V2 << std::endl;
+        std::cout << "V3 = " << V3 << std::endl;
+        std::cout << "V4 = " << V4 << std::endl;
+        std::cout << "V5 = " << V5 << std::endl;
         Validity = V1 && V2 && V3 && V4 && V5;
         return Validity;
     }

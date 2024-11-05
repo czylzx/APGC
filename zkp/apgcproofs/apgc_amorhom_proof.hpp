@@ -295,14 +295,6 @@ namespace AmorHom
 
         ECPoint init;
         init.SetInfinity();
-        // std::vector<ECPoint> vec_base_new(pp.n*4, init);
-
-        // std::vector<std::vector<ECPoint>> vec_y_base_1(pp.n, std::vector<ECPoint>(pp.n*4,init));
-        // std::vector<std::vector<ECPoint>> vec_y_base_2(pp.n, std::vector<ECPoint>(pp.n*4,init));
-        // std::vector<std::vector<ECPoint>> vec_y_base_3(pp.n, std::vector<ECPoint>(pp.n*4,init));
-        // std::vector<std::vector<ECPoint>> vec_y_base_4(pp.n, std::vector<ECPoint>(pp.n*4,init));
-        // std::vector<ECPoint> vec_y_base_5(pp.n*4,init);
-        
 
         
         size_t n = pp.n;
