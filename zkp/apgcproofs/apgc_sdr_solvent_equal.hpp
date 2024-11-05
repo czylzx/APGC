@@ -70,6 +70,8 @@ namespace Solvent_Equal
         LinBit::Proof linbit_proof;
         Kbit::Proof kbit_proof;
         ZkdlProduct::Proof zkdl_product_proof;
+        BigInt f_zkdl;
+        ECPoint Ax;
     }; 
 
     std::ofstream &operator<<(std::ofstream &fout, const Solvent_Equal::Proof &proof)
@@ -465,10 +467,10 @@ namespace Solvent_Equal
         {
             S_prime = S_prime + (pp.vec_g1[i] + pp.vec_h[i]) * vec_p_eval[i];
         }
-        ZkdlProduct::PP zkdl_pp = ZkdlProduct::Setup(4*n+1, true); //notice the flag
-        std::vector<ECPoint> vec_g4zkdl(4*n+1);
+        ZkdlProduct::PP zkdl_pp = ZkdlProduct::Setup(4*n, true); //notice the flag
+        std::vector<ECPoint> vec_g4zkdl(4*n);
         std::vector<ECPoint> vec_g4amorhom(4*n);
-        std::vector<BigInt> vec_a4zkdl(4*n+1);
+        std::vector<BigInt> vec_a4zkdl(4*n);
         for(auto i = 0; i < n; i++)
         {
             vec_g4zkdl[i] = pp.vec_g2[i];
@@ -480,15 +482,25 @@ namespace Solvent_Equal
             vec_a4zkdl[2*n+i] = vec_v[i];
             vec_a4zkdl[3*n+i] = -vec_s_inverse[i];
         }
-        vec_g4zkdl[4*n] = pp.u;
-        vec_a4zkdl[4*n] = rP - rS;
-        zkdl_pp.vec_g = vec_g4zkdl;
-        std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end()-1, vec_g4amorhom.begin());
+  
+        //zkdl_pp.vec_g = vec_g4zkdl;
+        std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end(), vec_g4amorhom.begin());
+        zkdl_pp.vec_g = vec_g4amorhom;
+
+        std::vector<BigInt> a_init = GenRandomBigIntVectorLessThan(4*n, order);
+        BigInt b_init = GenRandomBigIntLessThan(order);
+        ECPoint Ax = ECPointVectorMul(vec_g4amorhom, a_init) + pp.u * b_init;
+        proof.Ax = Ax;
+        
+        std::vector<BigInt> vec_y4zkdl(4*n);
+        proof.f_zkdl = b_init + x * (rP - rS);
+        std::vector<BigInt> vec_y4zkdl_temp = BigIntVectorScalar(vec_a4zkdl, x);
+        vec_y4zkdl = BigIntVectorModAdd(a_init, vec_y4zkdl_temp, order);
         ZkdlProduct::Instance zkdl_instance;
-        zkdl_instance.G = P_equal + S_equal.Invert();
+        zkdl_instance.G = (P_equal + S_equal.Invert()) * x + Ax;
 
         ZkdlProduct::Witness zkdl_witness;
-        zkdl_witness.vec_a = vec_a4zkdl;
+        zkdl_witness.vec_a = vec_y4zkdl;
 
         ZkdlProduct::Proof zkdl_proof;
         transcript_str = "";
@@ -603,8 +615,8 @@ namespace Solvent_Equal
             S_prime = S_prime + (pp.vec_g1[i] + pp.vec_h[i]) * vec_p_eval[i];
         }
 
-        ZkdlProduct::PP zkdl_pp = ZkdlProduct::Setup(4*n+1, true); //notice the flag
-        std::vector<ECPoint> vec_g4zkdl(4*n+1);
+        ZkdlProduct::PP zkdl_pp = ZkdlProduct::Setup(4*n, true); //notice the flag
+        std::vector<ECPoint> vec_g4zkdl(4*n);
         std::vector<ECPoint> vec_g4amorhom(4*n);
         for(auto i = 0; i < n; i++)
         {
@@ -613,11 +625,10 @@ namespace Solvent_Equal
             vec_g4zkdl[2*n+i] = pp.vec_g4[i];
             vec_g4zkdl[3*n+i] = pp.vec_h[i];
         }
-        vec_g4zkdl[4*n] = pp.u;
-        std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end()-1, vec_g4amorhom.begin());
+        std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end(), vec_g4amorhom.begin());
         zkdl_pp.vec_g = vec_g4zkdl;
         ZkdlProduct::Instance zkdl_instance;
-        zkdl_instance.G = proof.P_equal + proof.S_equal.Invert();
+        zkdl_instance.G = (proof.P_equal + proof.S_equal.Invert()) * x + proof.Ax;
 
         ZkdlProduct::Proof zkdl_proof = proof.zkdl_product_proof;
         transcript_str = "";

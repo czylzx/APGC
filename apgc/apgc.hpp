@@ -938,7 +938,7 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
-    condition5 = true;
+    //condition5 = true;
     #ifdef DEMO
         if (condition5) std::cout << "NIZKPoK for Solvent_Equal proof accepts" << std::endl; 
         else std::cout << "NIZKPoK for Solvent_Equal proof rejects" << std::endl; 
