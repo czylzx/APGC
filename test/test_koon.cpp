@@ -17,38 +17,27 @@ void GenRandomInstanceWitness(Koon::PP &pp, Koon::Instance &instance,
 
     size_t N = pp.vec_g.size();
     size_t m = log2(N);
-    //pp.k = 1;
 
     witness.vec_r = GenRandomBigIntVectorLessThan(pp.k, order);
     witness.vec_l.resize(pp.k);
 
+    witness.vec_l[0] = rand() % N;
+    size_t count = 1;
+    while(count < pp.k){
+        size_t temp = rand() % N;
+        bool flag = true;
+        for(auto i=0;i<count;i++){
+            if(witness.vec_l[i] == temp){
+                flag = false;
+                break;
+            }
+        }
+        if(flag == true){
+            witness.vec_l[count] = temp;
+            count++;
+        }
+    }
 
-    // srand(time(0));
-    //witness.vec_l[0] = rand() % N;
-    witness.vec_l[0]=0;
-    std::cout <<"witness.vec_l[0] =" << witness.vec_l[0] << std::endl;
-    // std::cout<<pp.k<<std::endl;
-
-    // size_t count = 1;
-    // while(count < pp.k){
-    //     size_t temp = rand() % N;
-    //     bool flag = true;
-    //     for(auto i=0;i<count;i++){
-    //         if(witness.vec_l[i] == temp){
-    //             flag = false;
-    //             break;
-    //         }
-    //     }
-    //     if(flag == true){
-    //         witness.vec_l[count] = temp;
-    //         count++;
-    //     }
-    // }
-
-    // for(auto i=0;i<pp.k;i++){
-    //     std::cout<<witness.vec_l[i]<<std::endl;
-    // }
-    
     instance.vec_c = GenRandomECPointVector(N);
     for(auto i=0;i<pp.k;i++){
         instance.vec_c[witness.vec_l[i]] = pp.g * witness.vec_r[i];
@@ -72,7 +61,6 @@ void test_nizk_koon(bool flag)
     Koon::Instance instance; 
     Koon::Witness witness;  
     std::string transcript_str;
-
 
     GenRandomInstanceWitness(pp, instance, witness, flag);
     
@@ -101,7 +89,7 @@ int main()
     CRYPTO_Initialize();  
     
     test_nizk_koon(true);
-    // test_nizk_koon(false); 
+    test_nizk_koon(false); 
 
     CRYPTO_Finalize(); 
 
