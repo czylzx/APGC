@@ -197,7 +197,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
     // bullet one witness
     Bullet::Witness bullet_witness_one;
-    bullet_witness_one.r.resize(1);
+    bullet_witness_one.r = GenRandomBigIntVectorLessThan(1,order);
     bullet_witness_one.r[0] = tau;
     bullet_witness_one.v = witness.vec_V;
 
@@ -206,7 +206,6 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
     // call bullet proof
     Bullet::Prove(bullet_pp_one,bullet_instance_one,bullet_witness_one,bulllet_transcript_str_one,proof.bullet_proof_one);
-    std::cout<<"here"<<std::endl;
 
     // bullet proof for v-1
     // bullet two pp 
@@ -223,9 +222,9 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
     // bullet one witness
     Bullet::Witness bullet_witness_two;
-    bullet_witness_two.r.resize(1);
+    bullet_witness_two.r = GenRandomBigIntVectorLessThan(1,order);
     bullet_witness_two.r[0] = tau;
-    bullet_witness_two.v.resize(K);
+    bullet_witness_two.v = GenRandomBigIntVectorLessThan(K,order);
     for(auto i=0;i<K;i++){
         bullet_witness_two.v[i] = (witness.vec_V[i] - bn_1 + order) % order;
     }
@@ -293,6 +292,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
             } 
         }
         P_ij.emplace_back(vec_P);
+        // PrintBigIntVector(P_ij[i],"");
     }
 
     // compute vec_e_k
@@ -302,9 +302,9 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     ECPoint G_l ;
     G_l.SetInfinity();
     for(auto j=0;j<N;j++){
-        BigInt index = bn_0;
-        for(auto i=0;i<K;i++){
-            index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
+        BigInt index = (e.ModInverse(order) * P_ij[0][j] % order) % order;
+        for(auto i=1;i<K;i++){
+            index = (index + vec_e_k[i-1] * P_ij[i][j] % order) % order;
         }
         G_l += instance.vec_C[j] * index;
     }
@@ -376,19 +376,19 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     bullet_pp_two.g = pp.g;
     bullet_pp_two.h = pp.h;
     bullet_pp_two.u = pp.u;
-    bullet_pp_two.vec_g = pp.vec_g_range1;
-    bullet_pp_two.vec_h = pp.vec_h_range1;
+    bullet_pp_two.vec_g = pp.vec_g_range2;
+    bullet_pp_two.vec_h = pp.vec_h_range2;
 
-    // bullet one instance
+    // bullet two instance
     ECPoint temp = pp.h * vec_e_k[0];
     for(auto i=1;i<K;i++){
         temp += pp.h * vec_e_k[i];
     }
     Bullet::Instance bullet_instance_two;
     bullet_instance_two.C = GenRandomECPointVector(1);
-    bullet_instance_two.C[0] = (G * exp_x[M].ModInverse(order)) + temp.Invert();
+    bullet_instance_two.C[0] = G * exp_x[M].ModInverse(order) + temp.Invert();
 
-    // bullet one transcript str
+    // bullet two transcript str
     std::string bulllet_transcript_str_two = "";
 
     // call bullet proof
