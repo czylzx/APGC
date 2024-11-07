@@ -9,7 +9,7 @@
 #include "../../utility/polymul.hpp"
 #include "../../zkp/nizk/nizk_lin_bit.hpp"
 #include "../../zkp/nizk/nizk_koon_for_kreceiver.hpp"
-#include "../../zkp/bulletproofs/bullet_proof.hpp"
+#include "../../zkp/bulletproofs/bulllet_proof_for_kreceiver.hpp"
 
 namespace Kreceiver{
 
@@ -302,9 +302,9 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     ECPoint G_l ;
     G_l.SetInfinity();
     for(auto j=0;j<N;j++){
-        BigInt index = (e.ModInverse(order) * P_ij[0][j] % order) % order;
-        for(auto i=1;i<K;i++){
-            index = (index + vec_e_k[i-1] * P_ij[i][j] % order) % order;
+        BigInt index = bn_0;
+        for(auto i=0;i<K;i++){
+            index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
         }
         G_l += instance.vec_C[j] * index;
     }
