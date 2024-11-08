@@ -20,12 +20,9 @@ void GenRandomInstanceWitness(Kreceiver::PP &pp, Kreceiver::Instance &instance,
     size_t k = pp.k;
 
 
-    witness.vec_R = GenRandomBigIntVectorLessThan(N,order);
+    witness.vec_R = GenRandomBigIntVectorLessThan(k,order);
 
-    witness.vec_V.resize(N);
-    for(auto i=0;i<N;i++){
-        witness.vec_V[i] = BigInt(32);
-    }
+    witness.vec_V = GenRandomBigIntVectorLessThan(k,order);
     
     witness.vec_L.resize(k);
     
@@ -47,11 +44,10 @@ void GenRandomInstanceWitness(Kreceiver::PP &pp, Kreceiver::Instance &instance,
     }
 
 
-
     instance.vec_C = GenRandomECPointVector(N);
     for(auto i=0;i<k;i++){
         size_t index = witness.vec_L[i];
-        instance.vec_C[index] = pp.g * witness.vec_R[index] + pp.h * witness.vec_V[index];
+        instance.vec_C[index] = pp.g * witness.vec_R[i] + pp.h * witness.vec_V[i];
     }
 
     if(flag == false){
