@@ -144,7 +144,8 @@ void Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcript
 { 
     auto start_time = std::chrono::steady_clock::now(); 
 
-    size_t n = instance.C.size();
+    // size_t n = instance.C.size();
+    size_t n = pp.MAX_AGG_NUM;
     size_t LEN = pp.RANGE_LEN * n; // LEN = mn
 
     std::vector<BigInt> vec_aL(LEN);  
@@ -234,7 +235,7 @@ void Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcript
     
     std::vector<BigInt> vec_short_2_power = GenBigIntPowerVector(pp.RANGE_LEN, bn_2); // 2^n
     std::vector<BigInt> vec_e_power = GenBigIntPowerVector(n,pp.e);
-    
+
     for(auto i=0;i<n;i++){
         for(auto j=0;j<pp.RANGE_LEN;j++){
             vec_zz_temp[i*pp.RANGE_LEN+j] = (vec_e_power[i] * vec_short_2_power[j]) * z_square % order;
@@ -274,6 +275,7 @@ void Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcript
     BigInt tau2 = GenRandomBigIntLessThan(order); 
 
     vec_A.clear(); vec_A = {pp.g, pp.h};
+    // vec_A.clear(); vec_A = {pp.h, pp.g};
     
     vec_a.clear(); vec_a = {tau1, t1};  
     proof.T1 = ECPointVectorMul(vec_A, vec_a); //pp.g * tau1 + pp.h * t1; mul(tau1, pp.g, t1, pp.h);
@@ -371,7 +373,8 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     transcript_str += x.ToByteString(); 
     BigInt e = Hash::StringToBigInt(transcript_str);  // play the role of x_u
 
-    size_t n = instance.C.size();
+    // size_t n = instance.C.size();
+    size_t n = pp.MAX_AGG_NUM;
     size_t LEN = pp.RANGE_LEN * n; // l = nm 
     std::vector<BigInt> vec_1_power(LEN, bn_1); // vec_unary = 1^nm
     std::vector<BigInt> vec_short_1_power(pp.RANGE_LEN, bn_1); 
@@ -408,7 +411,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
     BigInt bn_c0 = z.ModSub(z_square, order); // z-z^2
     bn_temp1 = bn_c0 * bn_temp1 % order; 
-    bn_temp2 = z_cubic * bn_temp2 % order; 
+    bn_temp2 = z * bn_temp2 % order; 
   
     BigInt delta_yz = bn_temp1.ModSub(bn_temp2, order);  //Eq (39) also see page 21
 
@@ -419,16 +422,17 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     // the intermediate variables used to compute the right value
     std::vector<ECPoint> vec_A; 
     std::vector<BigInt> vec_a;
-    vec_A.resize(n + 3); 
-    vec_a.resize(n + 3);
+    // vec_A.resize(n + 3); 
+    // vec_a.resize(n + 3);
 
-    std::copy(instance.C.begin(), instance.C.end(), vec_A.begin()); 
-    std::copy(vec_adjust_z_power.begin()+1, vec_adjust_z_power.end(), vec_a.begin()); 
+    // std::copy(instance.C.begin(), instance.C.end(), vec_A.begin()); 
+    // std::copy(vec_adjust_z_power.begin()+1, vec_adjust_z_power.end(), vec_a.begin()); 
 
-    vec_A[n] = pp.h, vec_A[n+1] = proof.T1, vec_A[n+2] = proof.T2;
-    vec_a[n] = delta_yz, vec_a[n+1] = x, vec_a[n+2] = x_square;  
+    // vec_A[n] = pp.h, vec_A[n+1] = proof.T1, vec_A[n+2] = proof.T2;
+    // vec_a[n] = delta_yz, vec_a[n+1] = x, vec_a[n+2] = x_square;  
 
-    ECPoint RIGHT = ECPointVectorMul(vec_A, vec_a);  // RIGHT = V^{z^2} h^{\delta_yz} T_1^x T_2^{x^2} 
+    // ECPoint RIGHT = ECPointVectorMul(vec_A, vec_a);  // RIGHT = V^{z^2} h^{\delta_yz} T_1^x T_2^{x^2} 
+    ECPoint RIGHT = instance.C[0] * z_square + pp.h * delta_yz + proof.T1 * x + proof.T2 * x_square;
 
     V1 = (LEFT == RIGHT); 
     #ifdef DEBUG
