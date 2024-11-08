@@ -188,6 +188,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     bullet_pp_one.g = pp.g;
     bullet_pp_one.h = pp.h;
     bullet_pp_one.u = pp.u;
+    bullet_pp_one.e = e;
     bullet_pp_one.vec_g = pp.vec_g_range1;
     bullet_pp_one.vec_h = pp.vec_h_range1;
 
@@ -213,6 +214,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     bullet_pp_two.g = pp.g;
     bullet_pp_two.h = pp.h;
     bullet_pp_two.u = pp.u;
+    bullet_pp_two.e = e;
     bullet_pp_two.vec_g = pp.vec_g_range2;
     bullet_pp_two.vec_h = pp.vec_h_range2;
 
@@ -353,6 +355,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     bullet_pp_one.g = pp.g;
     bullet_pp_one.h = pp.h;
     bullet_pp_one.u = pp.u;
+    bullet_pp_one.e = e;
     bullet_pp_one.vec_g = pp.vec_g_range1;
     bullet_pp_one.vec_h = pp.vec_h_range1;
 
@@ -376,6 +379,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     bullet_pp_two.g = pp.g;
     bullet_pp_two.h = pp.h;
     bullet_pp_two.u = pp.u;
+    bullet_pp_two.e = e;
     bullet_pp_two.vec_g = pp.vec_g_range2;
     bullet_pp_two.vec_h = pp.vec_h_range2;
 
