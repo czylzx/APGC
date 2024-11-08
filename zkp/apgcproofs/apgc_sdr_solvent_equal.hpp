@@ -26,6 +26,7 @@ namespace Solvent_Equal
         ECPoint g;
         ECPoint h;
         ECPoint u;
+        ECPoint u_new;
         std::vector<ECPoint> vec_g;
         std::vector<ECPoint> vec_g1;
         std::vector<ECPoint> vec_g2;
@@ -135,6 +136,7 @@ namespace Solvent_Equal
         pp.g = g;
         pp.h = h;
         pp.u = GenRandomGenerator();
+        pp.u_new = GenRandomGenerator();
         pp.vec_g = GenRandomECPointVector(pp.LOG_VECTOR_LEN);
         pp.vec_g1 = GenRandomECPointVector(VECTOR_LEN);
         pp.vec_g2 = GenRandomECPointVector(VECTOR_LEN);
@@ -254,12 +256,12 @@ namespace Solvent_Equal
         std::vector<ECPoint> vec_C(m);
         for(auto d = 0; d < m; d++)
         {
-            vec_C[d] = pp.vec_h[0] * P[0][d];
+            vec_C[d] = (pp.vec_h[0] + pp.vec_g1[0]) * P[0][d];
             for(auto j = 1; j < n; j++)
             {
-                vec_C[d] += pp.vec_h[j] * P[j][d];
+                vec_C[d] += (pp.vec_h[j] + pp.vec_g1[j]) * P[j][d];
             }
-            vec_C[d] += pp.h * rho[d];
+            vec_C[d] += pp.u * rho[d];
         }
 
         //compute s;
@@ -306,6 +308,7 @@ namespace Solvent_Equal
 
         BigInt rP = GenRandomBigIntLessThan(order);
         BigInt rS = GenRandomBigIntLessThan(order);
+
         std::vector<BigInt> vec_1_power(n, bn_1);
         std::vector<BigInt> vec_s_inverse = BigIntVectorModSub(vec_s, vec_1_power, order);
         ECPoint P_equal = ECPointVectorMul(pp.vec_g1, vec_s) + 
@@ -314,7 +317,7 @@ namespace Solvent_Equal
                           ECPointVectorMul(pp.vec_g4, vec_v) +
                           pp.u * rP;
         ECPoint S_equal = ECPointVectorMul(pp.vec_g1, vec_s) + 
-                          ECPointVectorMul(pp.vec_h, vec_sk) + 
+                          ECPointVectorMul(pp.vec_h, vec_s_inverse) + 
                           pp.u * rS;
 
         transcript_str = "";
@@ -378,6 +381,7 @@ namespace Solvent_Equal
         kbit_pp.g = pp.g;
         kbit_pp.h = pp.h;
         kbit_pp.u = pp.u;
+        kbit_pp.u_new = pp.u_new;
         kbit_pp.vec_h = pp.vec_h;
         kbit_pp.vec_g = pp.vec_g1;
 
@@ -531,6 +535,7 @@ namespace Solvent_Equal
         kbit_pp.g = pp.g;
         kbit_pp.h = pp.h;
         kbit_pp.u = pp.u;
+        kbit_pp.u_new = pp.u_new;
         kbit_pp.vec_h = pp.vec_h;
         kbit_pp.vec_g = pp.vec_g1;
 
@@ -563,11 +568,24 @@ namespace Solvent_Equal
         std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end(), vec_g4amorhom.begin());
         zkdl_pp.vec_g = vec_g4zkdl;
         ZkdlProduct::Instance zkdl_instance;
-        zkdl_instance.G = (proof.P_equal + proof.S_equal.Invert()) * x + proof.Ax;
+        // zkdl_instance.G = (proof.P_equal + proof.S_equal.Invert()) * x + proof.Ax;
+        zkdl_instance.G = (proof.P_equal + proof.S_equal.Invert()) * x + proof.Ax - pp.u * proof.f_zkdl;
 
         ZkdlProduct::Proof zkdl_proof = proof.zkdl_product_proof;
         transcript_str = "";
         bool V3 = ZkdlProduct::Verify(zkdl_pp, zkdl_instance, transcript_str, zkdl_proof);
+       
+
+
+
+
+
+
+
+
+
+
+
        
         AmorHom::PP amorhom_pp = AmorHom::Setup(n);
         amorhom_pp.g = pp.g;
@@ -592,16 +610,27 @@ namespace Solvent_Equal
         transcript_str = "";
         bool V4 = AmorHom::Verify(amorhom_pp, amorhom_instance, transcript_str, amorhom_proof);
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         ECPoint LEFT = proof.S_equal * (exp_x[m]) + S_prime.Invert();
-        bool V5;
-        if(LEFT == pp.u * proof.zs)
-        {
-            V5 = true;
-        }
-        else
-        {
-            V5 = false;
-        }
+        bool V5 = (LEFT == pp.u * proof.zs);
+
         std::cout << "V1 = " << V1 << std::endl;
         std::cout << "V2 = " << V2 << std::endl;
         std::cout << "V3 = " << V3 << std::endl;
