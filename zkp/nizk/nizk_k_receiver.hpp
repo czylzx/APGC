@@ -83,6 +83,8 @@ struct Proof
     Koon::Proof koon_proof;
     Bullet::Proof bullet_proof_one;
     Bullet::Proof bullet_proof_two;
+    // // test
+    // std::vector<BigInt> vec_v;
 
 };
  
@@ -236,6 +238,9 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
 
     // call bullet proof
     Bullet::Prove(bullet_pp_two,bullet_instance_two,bullet_witness_two,bulllet_transcript_str_two,proof.bullet_proof_two);
+
+    // // test
+    // proof.vec_v = witness.vec_V;
 
     return proof;
 
@@ -400,6 +405,19 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
 
     bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2];
+
+    // // test
+    // // std::vector<BigInt> vec_v(K,bn_0);
+    // BigInt abc = vec_e_k[0] * proof.vec_v[0] % order;
+    // for(auto i=1;i<K;i++){
+    //     abc = (abc + vec_e_k[i] * proof.vec_v[i] % order) % order; 
+    // }
+    // abc = abc * exp_x[M] % order;
+
+    // std::vector<ECPoint> aaa = {G,pp.g*proof.koon_proof.zG + pp.h * abc,pp.g*proof.koon_proof.zG};
+    // PrintECPointVector(aaa,"");
+    // std::cout<<(G==(pp.g*proof.koon_proof.zG + pp.h * abc))<<std::endl;
+
 
 
     #ifdef DEBUG
