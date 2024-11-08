@@ -20,6 +20,8 @@ struct PP
 
     ECPoint g, h;
     ECPoint u; // used for inside innerproduct statement
+
+    BigInt e;
     std::vector<ECPoint> vec_g, vec_h; // the pp of innerproduct part    
 };
 
@@ -129,6 +131,8 @@ PP Setup(size_t &RANGE_LEN, size_t &MAX_AGG_NUM)
     pp.h = Hash::StringToECPoint(pp.g.ToByteString()); 
     pp.u = GenRandomGenerator();
 
+    pp.e = GenRandomBigIntLessThan(order);
+
     pp.vec_g = GenRandomECPointVector(RANGE_LEN*MAX_AGG_NUM);
     pp.vec_h = GenRandomECPointVector(RANGE_LEN*MAX_AGG_NUM);
 
@@ -229,20 +233,31 @@ void Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcript
     std::vector<BigInt> poly_rr0 = BigIntVectorModProduct(vec_y_power, vec_zz_temp, BigInt(order)); // y^nm(aR + z1^nm)
     
     std::vector<BigInt> vec_short_2_power = GenBigIntPowerVector(pp.RANGE_LEN, bn_2); // 2^n
-
-
-    for (auto j = 1; j <= n; j++)
-    {
-        for (auto i = 0; i < (j-1)*pp.RANGE_LEN; i++) 
-            vec_zz_temp[i] = bn_0; 
-        for (auto i = 0; i < pp.RANGE_LEN; i++) 
-            vec_zz_temp[(j-1)*pp.RANGE_LEN+i] = vec_short_2_power[i]; 
-        for (auto i = 0; i < (n-j)*pp.RANGE_LEN; i++) 
-            vec_zz_temp[j*pp.RANGE_LEN+i] = bn_0;
-
-        vec_zz_temp = BigIntVectorModScalar(vec_zz_temp, vec_adjust_z_power[j], BigInt(order)); 
-        poly_rr0 = BigIntVectorModAdd(poly_rr0, vec_zz_temp, BigInt(order));  
+    std::vector<BigInt> vec_e_power = GenBigIntPowerVector(n,pp.e);
+    
+    for(auto i=0;i<n;i++){
+        for(auto j=0;j<pp.RANGE_LEN;j++){
+            vec_zz_temp[i*pp.RANGE_LEN+j] = (vec_e_power[i] * vec_short_2_power[j]) * z_square % order;
+        }
     }
+
+    poly_rr0 = BigIntVectorModAdd(poly_rr0, vec_zz_temp,BigInt(order));
+
+
+    // for (auto j = 1; j <= n; j++)
+    // {
+    //     for (auto i = 0; i < (j-1)*pp.RANGE_LEN; i++) 
+    //         vec_zz_temp[i] = bn_0; 
+    //     for (auto i = 0; i < pp.RANGE_LEN; i++) 
+    //         vec_zz_temp[(j-1)*pp.RANGE_LEN+i] = vec_short_2_power[i]; 
+    //     for (auto i = 0; i < (n-j)*pp.RANGE_LEN; i++) 
+    //         vec_zz_temp[j*pp.RANGE_LEN+i] = bn_0;
+
+    //     vec_zz_temp = BigIntVectorModScalar(vec_zz_temp, vec_adjust_z_power[j], BigInt(order)); 
+    //     poly_rr0 = BigIntVectorModAdd(poly_rr0, vec_zz_temp, BigInt(order));  
+    // }
+
+
     std::vector<BigInt> poly_rr1 = BigIntVectorModProduct(vec_y_power, vec_sR, BigInt(order)); //y^nsR X
 
     // compute t(X) 
@@ -379,13 +394,21 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     }
     sum_z = (sum_z * z) % order;  
 
-    // compute delta_yz (pp. 21)    
+    // compute delta_yz (pp. 21)
+    std::vector<BigInt> vec_e_power = GenBigIntPowerVector(n,pp.e);
+
+    std::vector<BigInt> vec_zz_temp(LEN);
+    for(auto i=0;i<n;i++){
+        for(auto j=0;j<pp.RANGE_LEN;j++){
+            vec_zz_temp[i*pp.RANGE_LEN+j] = (vec_e_power[i] * vec_short_2_power[j]) * z_square % order;
+        }
+    }    
     BigInt bn_temp1 = BigIntVectorModInnerProduct(vec_1_power, vec_y_power, BigInt(order)); 
-    BigInt bn_temp2 = BigIntVectorModInnerProduct(vec_short_1_power, vec_short_2_power, BigInt(order)); 
+    BigInt bn_temp2 = BigIntVectorModInnerProduct(vec_1_power, vec_zz_temp, BigInt(order)); 
 
     BigInt bn_c0 = z.ModSub(z_square, order); // z-z^2
-    bn_temp1 = bn_c0 * bn_temp1; 
-    bn_temp2 = sum_z * bn_temp2; 
+    bn_temp1 = bn_c0 * bn_temp1 % order; 
+    bn_temp2 = z_cubic * bn_temp2 % order; 
   
     BigInt delta_yz = bn_temp1.ModSub(bn_temp2, order);  //Eq (39) also see page 21
 
@@ -448,14 +471,17 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     std::move(vec_z_minus_unary.begin(), vec_z_minus_unary.end(), vec_a.begin()); // LEFT += g^{-1 z^n} 
 
     std::vector<BigInt> vec_rr = BigIntVectorModScalar(vec_y_power, z, BigInt(order)); // z y^nm
-    std::vector<BigInt> temp_vec_zz; 
-    for(auto j = 1; j <= n; j++)
-    {
-        temp_vec_zz = BigIntVectorModScalar(vec_2_power, vec_adjust_z_power[j], BigInt(order)); 
-        for(auto i = 0; i < pp.RANGE_LEN; i++)
-        {
-            vec_rr[(j-1)*pp.RANGE_LEN+i] = (vec_rr[(j-1)*pp.RANGE_LEN+i] + temp_vec_zz[i]) % order;            
-        }
+    // std::vector<BigInt> temp_vec_zz; 
+    // for(auto j = 1; j <= n; j++)
+    // {
+    //     temp_vec_zz = BigIntVectorModScalar(vec_2_power, vec_adjust_z_power[j], BigInt(order)); 
+    //     for(auto i = 0; i < pp.RANGE_LEN; i++)
+    //     {
+    //         vec_rr[(j-1)*pp.RANGE_LEN+i] = (vec_rr[(j-1)*pp.RANGE_LEN+i] + temp_vec_zz[i]) % order;            
+    //     }
+    // }
+    for(auto i=0;i<LEN;i++){
+        vec_rr[i] = (vec_rr[i] + vec_zz_temp[i]) % order;
     }
     std::move(vec_rr.begin(), vec_rr.end(), vec_a.begin()+ip_pp.VECTOR_LEN); 
      
