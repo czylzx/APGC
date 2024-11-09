@@ -453,6 +453,13 @@ namespace Solvent_Equal
         amorhom_pp.h = pp.h;
         amorhom_pp.u = pp.u;
         amorhom_pp.vec_g = vec_g4amorhom;
+        for(auto i = 0; i < n; i++)
+        {
+            amorhom_pp.vec_g[i] = pp.vec_g1[i];
+            amorhom_pp.vec_g[n+i] = pp.vec_g2[i];
+            amorhom_pp.vec_g[2*n+i] = pp.vec_g3[i];
+            amorhom_pp.vec_g[3*n+i] = pp.vec_g4[i];
+        }
         //amorhom_pp.vec_u = pp.vec_u;
 
         AmorHom::Instance amorhom_instance;
@@ -592,6 +599,13 @@ namespace Solvent_Equal
         amorhom_pp.h = pp.h;
         amorhom_pp.u = pp.u;
         amorhom_pp.vec_g = vec_g4amorhom;
+        for(auto i = 0; i < n; i++)
+        {
+            amorhom_pp.vec_g[i] = pp.vec_g1[i];
+            amorhom_pp.vec_g[n+i] = pp.vec_g2[i];
+            amorhom_pp.vec_g[2*n+i] = pp.vec_g3[i];
+            amorhom_pp.vec_g[3*n+i] = pp.vec_g4[i];
+        }
 
 
         AmorHom::Instance amorhom_instance;
