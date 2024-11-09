@@ -33,12 +33,13 @@ void GenRandomInstanceWitness(TwistedExponentialElGamal::PP pp_enc, Solvent_Equa
         {
             vec_bit[i] = bn_0;
         }
+        // vec_bit[i].Print("vec_bit");
     }
     // std::cout << "pp.vec_g.size = " << pp.vec_g.size() << std::endl;
     // std::cout << "vec_bit.size = " << vec_bit.size() << std::endl;
     instance.B = ECPointVectorMul(pp.vec_g, vec_bit) + pp.h * witness.rb_l0;
     instance.pk = GenRandomECPointVector(pp.VECTOR_LEN);
-    instance.pk[sender_index] = pp.g * sk;
+    instance.pk[witness.l0] = pp.g * sk;
    
 
     size_t n = pp.VECTOR_LEN;
@@ -79,7 +80,7 @@ void test_apgc_solvent_equal()
     // std::cout << "begin the test of NIZKPoK for plaintext knowledge >>>" << std::endl;
 
     TwistedExponentialElGamal::PP pp_enc = TwistedExponentialElGamal::Setup(32, 7);
-    size_t VECTOR_LEN = 4;
+    size_t VECTOR_LEN = 8;
 
     Solvent_Equal::PP pp = Solvent_Equal::Setup(pp_enc.g, pp_enc.h, VECTOR_LEN);
     
