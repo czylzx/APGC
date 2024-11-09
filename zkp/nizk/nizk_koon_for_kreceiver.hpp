@@ -63,9 +63,6 @@ struct Witness
 {
     std::vector<size_t> vec_l;
     std::vector<BigInt> vec_r;
-    // test
-    std::vector<BigInt> vec_v;
-    
 };
 
 
@@ -85,9 +82,6 @@ struct Proof
     BigInt zG;
     BigInt zP;
     LogBit::Proof logbit_proof;
-
-    // test
-    std::vector<BigInt> vec_v;
 };
  
 
@@ -312,9 +306,6 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     // compute log_proof
     proof.logbit_proof = LogBit::Prove(logbit_pp,logbit_instance,logbit_witness,logbit_transcript_str);
 
-    // // test
-    // proof.vec_v = witness.vec_v;
-
     return proof;
 
 }
@@ -418,7 +409,6 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
     // start verify
     std::vector<bool> vec_condition(3, false);
-    // std::vector<bool> vec_condition(4, false);
 
     // check condition 1
     LogBit::PP logbit_pp = LogBit::Setup(N);
@@ -457,34 +447,14 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     
     std::string transcript_str_linbit = "";
     vec_condition[1] = LinBit::Verify(linbit_pp, linbit_instance, transcript_str_linbit, linbit_proof);
-    
-    // // check condition 3
-    // vec_condition[2] = (G == pp.g * proof.zG);
 
-    // check condition 4
+    // check condition 3
     vec_condition[2] = (proof.P * exp_x[m] + P_new.Invert() == pp.u * proof.zP);
 
     // check result
     bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2];
-    // bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2] && vec_condition[4];
-
-    // // test
-    // std::vector<BigInt> vec_v = proof.vec_v;
-    // BigInt abc = vec_e_k[0] * vec_v[0] % order;
-    // for(auto i=1;i<k;i++){
-    //     abc = (abc + vec_e_k[i] * vec_v[i] % order) % order; 
-    // }
-    // abc = abc * exp_x[m] % order;
-
-    // std::vector<ECPoint> aaa = {G,pp.g*proof.zG + pp.h * abc,pp.g*proof.zG};
-    // PrintECPointVector(aaa,"");
-    // std::cout<<(G==(pp.g*proof.zG + pp.h * abc))<<std::endl;
 
     #ifdef DEBUG
-    // for(auto i = 0; i < 4; i++){
-    //     std::cout << std::boolalpha << "Condition "<< std::to_string(i) <<" (Koon proof) = " 
-    //               << vec_condition[i] << std::endl; 
-    // }
     for(auto i = 0; i < 3; i++){
         std::cout << std::boolalpha << "Condition "<< std::to_string(i) <<" (Koon proof) = " 
                   << vec_condition[i] << std::endl; 
