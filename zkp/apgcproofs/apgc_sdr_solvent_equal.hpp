@@ -1,6 +1,4 @@
-/***********************************************************************************
-this hpp implements the eqmdl product proof system
-***********************************************************************************/
+
 #ifndef SOLVENT_EQUAL_HPP
 #define SOLVENT_EQUAL_HPP
 
@@ -52,13 +50,10 @@ namespace Solvent_Equal
     {
         BigInt sk;
         size_t l0;
-        //BigInt l0;
         BigInt rb_l0;
         BigInt r_refresh;
         BigInt balance_sender;
-        // size of the vector = VECTOR_LEN
-        //std::vector<BigInt> vec_a;
-        // std::vector<BigInt> vec_b;
+
     };
 
     struct Proof
@@ -75,62 +70,10 @@ namespace Solvent_Equal
         ECPoint Ax;
     }; 
 
-    std::ofstream &operator<<(std::ofstream &fout, const Solvent_Equal::Proof &proof)
-    {
-        
-        return fout;
-    }
-
-    std::ifstream &operator>>(std::ifstream &fin, Solvent_Equal::Proof &proof)
-    {
-        
-        return fin;
-    }
-
-    std::string ProofToByteString(Proof &proof)
-    {
-        std::string str;
-        
-        return str;
-    }
-
-    void PrintPP(PP &pp)
-    {
-        std::cout << "vector length = " << pp.VECTOR_LEN << std::endl;
-        // size of the vector = VECTOR_LEN
-
-
-        // pp.u.Print("u");
-    }
-
-    void PrintWitness(Witness &witness)
-    {
-        
-        // PrintBigIntVector(witness.vec_b, "b");
-    }
-
-    void PrintInstance(Instance &instance)
-    {
-        //instance.P.Print("ip_instance.P");
-    }
-
-    void PrintProof(Proof &proof)
-    {
-       
-    };
-
- 
-
     /* (Protocol 2 on pp.15) */
     PP Setup(ECPoint g, ECPoint h, size_t VECTOR_LEN)
     {
         PP pp;
-        /*if (IsPowerOfTwo(VECTOR_LEN) == false)
-        {
-            std::cerr << "VECTOR_LEN must be power of 2" << std::endl;
-            exit(EXIT_FAILURE);
-        }*/
-
         pp.VECTOR_LEN = VECTOR_LEN;
         pp.LOG_VECTOR_LEN = log2(VECTOR_LEN);
         pp.g = g;
@@ -152,46 +95,40 @@ namespace Solvent_Equal
     }
 
     std::vector<BigInt> lagrange(std::vector<BigInt> &x, std::vector<BigInt> &y) 
-{
-    size_t n = x.size();
-    if (n != y.size() || n == 0) {
-        std::cerr << "Invalid input vectors!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    std::vector<BigInt> result(n, bn_0);
-
-    for (size_t i = 0; i < n; i++) {
-        BigInt temp = 1;
-        for (size_t j = 0; j < n; j++) {
-            if (i != j) {
-                temp *= (x[i] - x[j]) % order; // 计算基多项式的分母
-            }
+    {
+        size_t n = x.size();
+        if (n != y.size() || n == 0) {
+            std::cerr << "Invalid input vectors!" << std::endl;
+            exit(EXIT_FAILURE);
         }
 
-        // 模逆运算
-        BigInt temp_inv = temp.ModInverse(order);
-        BigInt L_i = (y[i] * temp_inv) % order; // L_i(x)
+        std::vector<BigInt> result(n, bn_0);
 
-        // 更新结果
-        for (size_t j = 0; j < n; j++) {
-            BigInt term = L_i;
-            for (size_t k = 0; k < n; k++) {
-                if (k != i) {
-                    term = (term * (x[j] - x[k]) % order) % order; // 计算每个 L_i
+        for (size_t i = 0; i < n; i++) {
+            BigInt temp = 1;
+            for (size_t j = 0; j < n; j++) {
+                if (i != j) {
+                    temp *= (x[i] - x[j]) % order; 
                 }
             }
-            result[j] = (result[j] + term) % order; // 累加到结果
+
+            BigInt temp_inv = temp.ModInverse(order);
+            BigInt L_i = (y[i] * temp_inv) % order; 
+
+            for (size_t j = 0; j < n; j++) {
+                BigInt term = L_i;
+                for (size_t k = 0; k < n; k++) {
+                    if (k != i) {
+                        term = (term * (x[j] - x[k]) % order) % order;
+                    }
+                }
+                result[j] = (result[j] + term) % order; 
+            }
         }
+
+        return result;
     }
 
-    return result;
-}
-
-    /*
-        Generate an argument PI for Relation 3 on pp.13: P = g^a h^b u^<a,b>
-        transcript_str is introduced to be used as a sub-protocol
-    */
     void Prove(PP pp, Instance instance, Witness witness, std::string &transcript_str, Proof &proof)
     {
         size_t n = pp.VECTOR_LEN;
@@ -322,11 +259,6 @@ namespace Solvent_Equal
 
         transcript_str = "";
         transcript_str = transcript_str + linbit_proof.A.ToByteString() + linbit_proof.C.ToByteString() + linbit_proof.D.ToByteString();
-        // for(auto d = 0; d < m; d++)
-        // {
-        //     transcript_str += vec_C[d].ToByteString();
-        // }
-        // transcript_str += P_equal.ToByteString();
 
         //compute the  challenge x
         BigInt x = Hash::StringToBigInt(transcript_str);
@@ -365,12 +297,10 @@ namespace Solvent_Equal
         proof.zs = zs;
         
         std::vector<BigInt> exp_x(m+1);
-        //std::vector<BigInt> x_power_m(m);
         exp_x[0] = bn_1;  
         for(auto k = 1; k <= m; k++){
             exp_x[k] = exp_x[k-1] * x % order; 
         }
-        //std::copy(exp_x.begin(), exp_x.end()-1, x_power_m.begin());
         
         ECPoint right = proof.vec_C[0] * (bn_0 - exp_x[0] + order);
         for(auto d = 1;d < m; d++){
@@ -422,7 +352,6 @@ namespace Solvent_Equal
             vec_a4zkdl[3*n+i] = -vec_s_inverse[i];
         }
   
-        //zkdl_pp.vec_g = vec_g4zkdl;
         std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end(), vec_g4amorhom.begin());
         zkdl_pp.vec_g = vec_g4amorhom;
 
@@ -460,7 +389,6 @@ namespace Solvent_Equal
             amorhom_pp.vec_g[2*n+i] = pp.vec_g3[i];
             amorhom_pp.vec_g[3*n+i] = pp.vec_g4[i];
         }
-        //amorhom_pp.vec_u = pp.vec_u;
 
         AmorHom::Instance amorhom_instance;
         amorhom_instance.P = P_equal;
@@ -485,14 +413,14 @@ namespace Solvent_Equal
 
     }
 
-    /* Check if PI is a valid proof for eqmdl product statement (G1^w = H1 and G2^w = H2) */
     bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proof)
     {
         bool Validity = false;
         transcript_str = "";
         size_t n = pp.VECTOR_LEN;
         size_t m = pp.LOG_VECTOR_LEN;
-        //LinBit::PP linbit_pp = LinBit::Setup(pp.vec_g, pp.h, n);
+
+
         LinBit::PP linbit_pp = LinBit::Setup(n);
         linbit_pp.vec_g = pp.vec_g;
         linbit_pp.h = pp.h;
@@ -514,9 +442,7 @@ namespace Solvent_Equal
 
         for(auto j = 0; j < n; j++)
         {
-            vec_p_eval[j] = bn_1;
-            //std::vector<size_t> vec_index = Decompose(j, 2, m); 
-    
+            vec_p_eval[j] = bn_1;    
             for(auto b = 0; b < m; b++)
             {    
                 if(GetTheNthBit(j, b) == 1){
@@ -524,8 +450,7 @@ namespace Solvent_Equal
                 }
                 else{
                     vec_p_eval[j] = vec_p_eval[j] * ((x - linbit_proof.vec_f[b] + order) % order) % order;
-                }
-                  
+                }  
             } 
         }
 
@@ -575,24 +500,11 @@ namespace Solvent_Equal
         std::copy(vec_g4zkdl.begin(), vec_g4zkdl.end(), vec_g4amorhom.begin());
         zkdl_pp.vec_g = vec_g4zkdl;
         ZkdlProduct::Instance zkdl_instance;
-        // zkdl_instance.G = (proof.P_equal + proof.S_equal.Invert()) * x + proof.Ax;
         zkdl_instance.G = (proof.P_equal + proof.S_equal.Invert()) * x + proof.Ax - pp.u * proof.f_zkdl;
 
         ZkdlProduct::Proof zkdl_proof = proof.zkdl_product_proof;
         transcript_str = "";
         bool V3 = ZkdlProduct::Verify(zkdl_pp, zkdl_instance, transcript_str, zkdl_proof);
-       
-
-
-
-
-
-
-
-
-
-
-
        
         AmorHom::PP amorhom_pp = AmorHom::Setup(n);
         amorhom_pp.g = pp.g;
@@ -623,24 +535,6 @@ namespace Solvent_Equal
         amorhom_proof = proof.amorhom_proof;
         transcript_str = "";
         bool V4 = AmorHom::Verify(amorhom_pp, amorhom_instance, transcript_str, amorhom_proof);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         ECPoint LEFT = proof.S_equal * (exp_x[m]) + S_prime.Invert();
         bool V5 = (LEFT == pp.u * proof.zs);
