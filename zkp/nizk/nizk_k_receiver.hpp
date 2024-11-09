@@ -83,9 +83,6 @@ struct Proof
     Koon::Proof koon_proof;
     Bullet::Proof bullet_proof_one;
     Bullet::Proof bullet_proof_two;
-    // // test
-    // std::vector<BigInt> vec_v;
-
 };
  
 
