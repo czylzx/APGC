@@ -19,10 +19,14 @@ void GenRandomInstanceWitness(Kreceiver::PP &pp, Kreceiver::Instance &instance,
     size_t m = log2(N);
     size_t k = pp.k;
 
+    BigInt max = bn_1;
+    for(auto i=0;i<32;i++){
+        max = max * bn_2 % order;
+    }
+    max = max - bn_1;
 
     witness.vec_R = GenRandomBigIntVectorLessThan(k,order);
-
-    witness.vec_V = GenRandomBigIntVectorLessThan(k,order);
+    witness.vec_V = GenRandomBigIntVectorLessThan(k,max);
     
     witness.vec_L.resize(k);
     
@@ -62,7 +66,7 @@ void test_nizk_Kreceiver(bool flag)
     PrintSplitLine('-');
     std::cout << "begin the test of Kreceiver proof >>>" << std::endl;
 
-    size_t N_max = 8;
+    size_t N_max = 64;
     
     Kreceiver::PP pp = Kreceiver::Setup(N_max);
     Kreceiver::Instance instance; 
@@ -96,7 +100,7 @@ int main()
     CRYPTO_Initialize();  
     
     test_nizk_Kreceiver(true);
-    // test_nizk_Kreceiver(false); 
+    test_nizk_Kreceiver(false); 
 
     CRYPTO_Finalize(); 
 
