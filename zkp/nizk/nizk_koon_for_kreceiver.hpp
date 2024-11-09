@@ -63,6 +63,9 @@ struct Witness
 {
     std::vector<size_t> vec_l;
     std::vector<BigInt> vec_r;
+    // test
+    std::vector<BigInt> vec_v;
+    
 };
 
 
@@ -82,6 +85,9 @@ struct Proof
     BigInt zG;
     BigInt zP;
     LogBit::Proof logbit_proof;
+
+    // test
+    std::vector<BigInt> vec_v;
 };
  
 
@@ -306,6 +312,9 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     // compute log_proof
     proof.logbit_proof = LogBit::Prove(logbit_pp,logbit_instance,logbit_witness,logbit_transcript_str);
 
+    // // test
+    // proof.vec_v = witness.vec_v;
+
     return proof;
 
 }
@@ -389,23 +398,23 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
 
     ECPoint P_new = P_new_r;
 
-    // // compute G
-    // ECPoint G_l ;
-    // G_l.SetInfinity();
-    // for(auto j=0;j<N;j++){
-    //     BigInt index = bn_0;
-    //     for(auto i=0;i<k;i++){
-    //         index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
-    //     }
-    //     G_l += instance.vec_c[j] * index;
-    // }
+    // compute G
+    ECPoint G_l ;
+    G_l.SetInfinity();
+    for(auto j=0;j<N;j++){
+        BigInt index = bn_0;
+        for(auto i=0;i<k;i++){
+            index = (index + vec_e_k[i] * P_ij[i][j] % order) % order;
+        }
+        G_l += instance.vec_c[j] * index;
+    }
 
-    // ECPoint G_r = proof.vec_C_c[0] * (- exp_x[0]);
-    // for(auto d=1;d<m;d++){
-    //     G_r += proof.vec_C_c[d] * (- exp_x[d]);
-    // }
+    ECPoint G_r = proof.vec_C_c[0] * (- exp_x[0]);
+    for(auto d=1;d<m;d++){
+        G_r += proof.vec_C_c[d] * (- exp_x[d]);
+    }
 
-    // ECPoint G = G_l + G_r;
+    ECPoint G = G_l + G_r;
 
     // start verify
     std::vector<bool> vec_condition(3, false);
@@ -459,6 +468,17 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2];
     // bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2] && vec_condition[4];
 
+    // // test
+    // std::vector<BigInt> vec_v = proof.vec_v;
+    // BigInt abc = vec_e_k[0] * vec_v[0] % order;
+    // for(auto i=1;i<k;i++){
+    //     abc = (abc + vec_e_k[i] * vec_v[i] % order) % order; 
+    // }
+    // abc = abc * exp_x[m] % order;
+
+    // std::vector<ECPoint> aaa = {G,pp.g*proof.zG + pp.h * abc,pp.g*proof.zG};
+    // PrintECPointVector(aaa,"");
+    // std::cout<<(G==(pp.g*proof.zG + pp.h * abc))<<std::endl;
 
     #ifdef DEBUG
     // for(auto i = 0; i < 4; i++){
