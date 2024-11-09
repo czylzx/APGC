@@ -255,7 +255,8 @@ namespace EqmdlProduct2
 
             // prepare the log(n)-th round message
             std::vector<BigInt> vec_aL(n), vec_aR(n);
-            std::vector<ECPoint> vec_gL(n), vec_gR(n), vec_hL(n), vec_hR(n), vec_pL(n), vec_pR(n);
+            // std::vector<ECPoint> vec_gL(n), vec_gR(n), vec_hL(n), vec_hR(n), vec_pL(n), vec_pR(n);
+            std::vector<ECPoint> vec_gL(n), vec_gR(n), vec_pL(n), vec_pR(n);
 
             // prepare aL, aR, bL, bR
             AssignBigIntVector(vec_aL, witness.vec_a, "left");
@@ -270,8 +271,8 @@ namespace EqmdlProduct2
 
             ECPoint GL = ECPointVectorMul(vec_gL, vec_aR);
             ECPoint GR = ECPointVectorMul(vec_gR, vec_aL);
-            ECPoint HL = ECPointVectorMul(vec_hL, vec_aR);
-            ECPoint HR = ECPointVectorMul(vec_hR, vec_aL);
+            // ECPoint HL = ECPointVectorMul(vec_hL, vec_aR);
+            // ECPoint HR = ECPointVectorMul(vec_hR, vec_aL);
             ECPoint PL = ECPointVectorMul(vec_pL, vec_aR);
             ECPoint PR = ECPointVectorMul(vec_pR, vec_aL);
 
@@ -281,7 +282,8 @@ namespace EqmdlProduct2
             proof.vec_PR.emplace_back(PR);
 
             // compute the challenge
-            transcript_str += GL.ToByteString() + GR.ToByteString() + HL.ToByteString() + HR.ToByteString() + PL.ToByteString() + PR.ToByteString();
+            transcript_str += GL.ToByteString() + GR.ToByteString() + PL.ToByteString() + PR.ToByteString();
+            // transcript_str += GL.ToByteString() + GR.ToByteString() + HL.ToByteString() + HR.ToByteString() + PL.ToByteString() + PR.ToByteString();
             BigInt x = Hash::StringToBigInt(transcript_str); // compute the n-th round challenge Eq (26,27)
 
             // x.Print("P:x");
@@ -315,11 +317,11 @@ namespace EqmdlProduct2
 
             std::vector<ECPoint> vec_G_A(2 * n + 1);
             std::vector<BigInt> vec_a(2 * n + 1);
-            std::vector<ECPoint> vec_H_A(2 * n + 1);
+            // std::vector<ECPoint> vec_H_A(2 * n + 1);
             std::vector<ECPoint> vec_P_A(2 * n + 1);
 
             vec_G_A.clear();
-            vec_H_A.clear();
+            // vec_H_A.clear();
             vec_P_A.clear();
             vec_a.clear();
 
@@ -402,7 +404,7 @@ namespace EqmdlProduct2
             pp_sub.vec_g = ECPointVectorAdd(vec_gL, vec_gR);
 
             // compute vec_h'
-            vec_hL = ECPointVectorScalar(vec_hL, x);
+            // vec_hL = ECPointVectorScalar(vec_hL, x);
 
             // compute vec_p'
             vec_pL = ECPointVectorScalar(vec_pL, x);
