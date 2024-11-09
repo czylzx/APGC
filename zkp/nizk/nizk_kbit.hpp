@@ -2,6 +2,7 @@
 #ifndef NIZK_K_BIT_HPP_
 #define NIZK_K_BIT_HPP_
 
+
 #include "../../crypto/ec_point.hpp"
 #include "../../crypto/hash.hpp"
 #include "../../pke/twisted_exponential_elgamal.hpp"
