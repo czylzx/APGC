@@ -14,6 +14,8 @@ void GenRandomInstanceWitness(TwistedExponentialElGamal::PP pp_enc, Solvent_Equa
     std::cout << "generate a valid twisted elgamal ciphertext >>>" << std::endl;
     size_t sender_index = 0;
     size_t receiver_index = 1;
+
+    
     BigInt sk = GenRandomBigIntLessThan(order);
     witness.sk = sk;
     witness.l0 = sender_index;
