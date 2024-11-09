@@ -33,72 +33,55 @@ void GenRandomInstanceWitness(TwistedExponentialElGamal::PP pp_enc, Solvent_Equa
         {
             vec_bit[i] = bn_0;
         }
-        // vec_bit[i].Print("vec_bit");
     }
-    // std::cout << "pp.vec_g.size = " << pp.vec_g.size() << std::endl;
-    // std::cout << "vec_bit.size = " << vec_bit.size() << std::endl;
+
     instance.B = ECPointVectorMul(pp.vec_g, vec_bit) + pp.h * witness.rb_l0;
     instance.pk = GenRandomECPointVector(pp.VECTOR_LEN);
     instance.pk[witness.l0] = pp.g * sk;
    
+    witness.balance_sender = BigInt(32);
+    witness.r_refresh = GenRandomBigIntLessThan(order);
 
     size_t n = pp.VECTOR_LEN;
-    std::vector<TwistedExponentialElGamal::CT> vec_participant_transfer_ct(n);
-    std::vector<TwistedExponentialElGamal::CT> vec_participant_balance_ct(n);
 
-    BigInt v_balance = BigInt(64);
-    for(auto i = 0; i < n; i++)
-    {
-        vec_participant_balance_ct[i] = TwistedExponentialElGamal::Enc(pp_enc, instance.pk[i], v_balance, GenRandomBigIntLessThan(order));
-        vec_participant_transfer_ct[i] = TwistedExponentialElGamal::Enc(pp_enc, instance.pk[i], bn_0, GenRandomBigIntLessThan(order));
-    }
-    BigInt v = BigInt(32);
-    vec_participant_transfer_ct[sender_index] = TwistedExponentialElGamal::Enc(pp_enc, instance.pk[sender_index], -v, GenRandomBigIntLessThan(order));
-    vec_participant_transfer_ct[receiver_index] = TwistedExponentialElGamal::Enc(pp_enc, instance.pk[receiver_index], v, GenRandomBigIntLessThan(order));
-    vec_participant_balance_ct[sender_index] = TwistedExponentialElGamal::HomoAdd(vec_participant_balance_ct[sender_index], vec_participant_transfer_ct[sender_index]);
-    vec_participant_balance_ct[receiver_index] = TwistedExponentialElGamal::HomoAdd(vec_participant_balance_ct[receiver_index], vec_participant_transfer_ct[receiver_index]);
-
-    witness.r_refresh = GenRandomBigIntLessThan(order);
-    std::vector<ECPoint> sum_ct_left(n);
-    std::vector<ECPoint> sum_ct_right(n);
-    for(auto i = 0; i < n; i++)
-    {
-        sum_ct_left[i] = vec_participant_transfer_ct[i].X + vec_participant_balance_ct[i].X;
-        sum_ct_right[i] = vec_participant_transfer_ct[i].Y + vec_participant_balance_ct[i].Y;
-    }
-    instance.Sum_CL = sum_ct_left;
-    instance.Sum_CR = sum_ct_right;
-    //witness.balance_sender = TwistedExponentialElGamal::Dec(pp_enc, sk, vec_participant_balance_ct[sender_index]);
-    witness.balance_sender = BigInt(32);
-    instance.Refresh_CL = instance.pk[sender_index] * witness.r_refresh;
+    instance.Refresh_CL = instance.pk[witness.l0] * witness.r_refresh;
     instance.Refresh_CR = pp_enc.g * witness.r_refresh + pp_enc.h * witness.balance_sender ;
-    
+
+    instance.Sum_CL = GenRandomECPointVector(n);
+    instance.Sum_CR = GenRandomECPointVector(n);
+
+    ECPoint R = (instance.Refresh_CR - instance.Sum_CR[witness.l0]) * witness.sk;
+    instance.Sum_CL[witness.l0] = instance.Refresh_CL - R;
 }
 
 void test_apgc_solvent_equal()
 {
-    // std::cout << "begin the test of NIZKPoK for plaintext knowledge >>>" << std::endl;
-
     TwistedExponentialElGamal::PP pp_enc = TwistedExponentialElGamal::Setup(32, 7);
-    size_t VECTOR_LEN = 8;
+    size_t VECTOR_LEN = 32;
 
     Solvent_Equal::PP pp = Solvent_Equal::Setup(pp_enc.g, pp_enc.h, VECTOR_LEN);
-    
     Solvent_Equal::Instance instance;
     Solvent_Equal::Witness witness;
+    std::string transcript_str = "";
+    Solvent_Equal::Proof proof;
     
     GenRandomInstanceWitness(pp_enc, pp, instance, witness);
 
-
-    std::string transcript_str = "";
-
-    Solvent_Equal::Proof proof;
+    auto start_time = std::chrono::steady_clock::now(); // start to count the time
     Solvent_Equal::Prove(pp, instance, witness, transcript_str, proof);
+    auto end_time = std::chrono::steady_clock::now(); // end to count the time
+    auto running_time = end_time - start_time;
+    std::cout << "sdrsolventequal proof generation takes time = " 
+    << std::chrono::duration <double, std::milli> (running_time).count() << " ms" << std::endl;
+
 
     transcript_str = "";
-
+    auto start_time1 = std::chrono::steady_clock::now(); // start to count the time
     bool result = Solvent_Equal::Verify(pp, instance, transcript_str, proof);
- 
+    auto end_time1 = std::chrono::steady_clock::now(); // end to count the time
+    auto running_time1 = end_time1 - start_time1;
+    std::cout << "sdrsolventequal proof verify takes time = " 
+    << std::chrono::duration <double, std::milli> (running_time1).count() << " ms" << std::endl;
     std::cout << result << std::endl;
 
 }
