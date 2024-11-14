@@ -38,7 +38,7 @@ void Build_APGC_Test_Enviroment(APGC::PP &pp, size_t number)
     std::cout << "generate four accounts" << std::endl; 
     PrintSplitLine('-'); 
 
-    BigInt Alice_balance = BigInt(512); 
+    BigInt Alice_balance = BigInt(1024); 
     APGC::Account Acct_Alice = APGC::CreateAccount(pp, "Alice", Alice_balance); 
     std::string Alice_Acct_FileName = "Alice.account"; 
     APGC::SaveAccount(Acct_Alice, Alice_Acct_FileName); 
@@ -302,12 +302,12 @@ void Emulate_APGC_System(size_t number, size_t kreceiver)
     std::cout << "press any key to continue >>>" << std::endl; 
     system ("read");
 
-    std::cout << "supervision of 1-to-n ctx begins >>>" << std::endl; 
-    PrintSplitLine('-'); 
-    APGC::SuperviseCTx(sp, pp, ctx, vec_Acct_participant); 
-    PrintSplitLine('-'); 
-    std::cout << "supervision of 1-to-k ctx ends >>>" << std::endl; 
-    PrintSplitLine('-');
+    //std::cout << "supervision of 1-to-n ctx begins >>>" << std::endl; 
+    //PrintSplitLine('-'); 
+    //APGC::SuperviseCTx(sp, pp, ctx, vec_Acct_participant); 
+    //PrintSplitLine('-'); 
+    //std::cout << "supervision of 1-to-k ctx ends >>>" << std::endl; 
+    //PrintSplitLine('-');
 
 }
 

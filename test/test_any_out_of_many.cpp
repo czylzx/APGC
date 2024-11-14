@@ -26,38 +26,38 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
     std::vector<BigInt> vec_b(N_max);
     instance.k = BigInt(N_sender);
 
-    // size_t sum_b = 0;
-    // for(auto i = 0; i < N_max; i++)
-    // {
-    //     srand(time(0));
-    //     size_t random_b = rand() % 2;
-    //     if(random_b == 0)
-    //     {
-    //         if(N_sender-sum_b >= N_max -i)
-    //         {
-    //             vec_b[i] = bn_1;
-    //             sum_b++;
-    //         }
-    //         else
-    //         {
-    //             vec_b[i] = bn_0;
-    //         }
-    //         //vec_b[i] = bn_0;
-    //     }
-    //     else
-    //     {
-    //         if(sum_b < N_sender)
-    //         {
-    //             vec_b[i] = bn_1;
-    //             sum_b++;
-    //         }
-    //         else
-    //         {
-    //             vec_b[i] = bn_0;
-    //         }      
-    //     }  
-    // }
-    vec_b = {bn_1, bn_0, bn_1, bn_0};
+    size_t sum_b = 0;
+    for(auto i = 0; i < N_max; i++)
+    {
+        srand(time(0));
+        size_t random_b = rand() % 2;
+        if(random_b == 0)
+        {
+            if(N_sender-sum_b >= N_max -i)
+            {
+                vec_b[i] = bn_1;
+                sum_b++;
+            }
+            else
+            {
+                vec_b[i] = bn_0;
+            }
+            //vec_b[i] = bn_0;
+        }
+        else
+        {
+            if(sum_b < N_sender)
+            {
+                vec_b[i] = bn_1;
+                sum_b++;
+            }
+            else
+            {
+                vec_b[i] = bn_0;
+            }      
+        }  
+    }
+    //vec_b = {bn_1, bn_0, bn_1, bn_0};
     for(auto i = 0; i < N_sender; i++)
     {
         vec_s[i] = GenRandomBigIntLessThan(order);
@@ -102,8 +102,8 @@ void test_any_out_of_many(size_t N_max, size_t N_sender)
 int main()
 {
     CRYPTO_Initialize(); 
-    size_t N_max = 4;
-    size_t N_sender = 2;
+    size_t N_max = 32;
+    size_t N_sender = 8;
    
     test_any_out_of_many(N_max, N_sender);
 
