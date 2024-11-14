@@ -4,7 +4,7 @@
 
 #include "innerproduct_proof.hpp" 
 
-namespace Bullet{
+namespace Bullet_kreceiver{
 
 using Serialization::operator<<; 
 using Serialization::operator>>; 
