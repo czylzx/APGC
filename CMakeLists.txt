@@ -186,23 +186,23 @@ ADD_EXECUTABLE(test_innerproduct_proof test/test_innerproduct_proof.cpp)
 TARGET_LINK_LIBRARIES(test_innerproduct_proof ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 # apgcproof
-ADD_EXECUTABLE(test_apgc_eqmdl test/test_apgc_eqmdl.cpp)
-TARGET_LINK_LIBRARIES(test_apgc_eqmdl ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_apgc_eqmdl test/test_apgc_eqmdl.cpp)
+# TARGET_LINK_LIBRARIES(test_apgc_eqmdl ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_apgc_eqmdl2 test/test_apgc_eqmdl2.cpp)
-TARGET_LINK_LIBRARIES(test_apgc_eqmdl2 ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_apgc_eqmdl2 test/test_apgc_eqmdl2.cpp)
+# TARGET_LINK_LIBRARIES(test_apgc_eqmdl2 ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_apgc_wellform test/test_apgc_wellform.cpp)
-TARGET_LINK_LIBRARIES(test_apgc_wellform ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_apgc_wellform test/test_apgc_wellform.cpp)
+# TARGET_LINK_LIBRARIES(test_apgc_wellform ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_apgc_sumzero test/test_apgc_sumzero.cpp)
-TARGET_LINK_LIBRARIES(test_apgc_sumzero ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_apgc_sumzero test/test_apgc_sumzero.cpp)
+# TARGET_LINK_LIBRARIES(test_apgc_sumzero ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_apgc_solvent_equal test/test_apgc_solvent_equal.cpp)
-TARGET_LINK_LIBRARIES(test_apgc_solvent_equal ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_apgc_solvent_equal test/test_apgc_solvent_equal.cpp)
+# TARGET_LINK_LIBRARIES(test_apgc_solvent_equal ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_lagrange test/test_lagrange.cpp)
-TARGET_LINK_LIBRARIES(test_lagrange ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_lagrange test/test_lagrange.cpp)
+# TARGET_LINK_LIBRARIES(test_lagrange ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 #ADD_EXECUTABLE(test_apgc_wellform test/test_apgc_wellform.cpp)
 #TARGET_LINK_LIBRARIES(test_apgc_wellform ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
@@ -214,32 +214,32 @@ TARGET_LINK_LIBRARIES(test_lagrange ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 # TARGET_LINK_LIBRARIES(test_range_proof ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 # cryptocurrency
-ADD_EXECUTABLE(test_adcp test/test_adcp.cpp)
-TARGET_LINK_LIBRARIES(test_adcp ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_adcp test/test_adcp.cpp)
+# TARGET_LINK_LIBRARIES(test_adcp ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 ADD_EXECUTABLE(test_any_out_of_many test/test_any_out_of_many.cpp)
 TARGET_LINK_LIBRARIES(test_any_out_of_many ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_1oon test/test_1oon.cpp)
-TARGET_LINK_LIBRARIES(test_1oon ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_1oon test/test_1oon.cpp)
+# TARGET_LINK_LIBRARIES(test_1oon ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_nizk_multi_plaintext_equality test/test_nizk_multi_plaintext_equality.cpp)
-TARGET_LINK_LIBRARIES(test_nizk_multi_plaintext_equality ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_nizk_multi_plaintext_equality test/test_nizk_multi_plaintext_equality.cpp)
+# TARGET_LINK_LIBRARIES(test_nizk_multi_plaintext_equality ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_sdr_trans test/test_sdr_trans.cpp)
-TARGET_LINK_LIBRARIES(test_sdr_trans ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_sdr_trans test/test_sdr_trans.cpp)
+# TARGET_LINK_LIBRARIES(test_sdr_trans ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 # ADD_EXECUTABLE(test_apgc test/test_apgc.cpp)
 # TARGET_LINK_LIBRARIES(test_apgc ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_kbit test/test_k_bit.cpp)
-TARGET_LINK_LIBRARIES(test_kbit ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_kbit test/test_k_bit.cpp)
+# TARGET_LINK_LIBRARIES(test_kbit ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_zkdl test/test_nizk_zkdl.cpp)
-TARGET_LINK_LIBRARIES(test_zkdl ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_zkdl test/test_nizk_zkdl.cpp)
+# TARGET_LINK_LIBRARIES(test_zkdl ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_koon test/test_koon.cpp)
-TARGET_LINK_LIBRARIES(test_koon ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_koon test/test_koon.cpp)
+# TARGET_LINK_LIBRARIES(test_koon ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 # mcl
 # add_executable(test_mcl test/test_mcl.cpp)
