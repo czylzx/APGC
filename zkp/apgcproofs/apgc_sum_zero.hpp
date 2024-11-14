@@ -6,6 +6,7 @@
 #include "../../commitment/pedersen.hpp"
 #include "../../utility/polymul.hpp"
 #include "../bulletproofs/innerproduct_proof.hpp"
+#include "../../utility/serialization.hpp"
 #include <vector>
 #include <iostream>
 
@@ -38,15 +39,15 @@ namespace SumZero
         BigInt z; 
     };
 
-    std::ofstream &operator<<(std::ofstream &fout, const WellFormProduct::Proof &proof)
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
     {
         fout << proof.A << proof.z;
         return fout;
     }
-
-    std::ifstream &operator>>(std::ifstream &fin, WellFormProduct::Proof &proof)
+    
+    std::ifstream &operator>>(std::ifstream &fin,const Proof &proof)
     {
-        fin >> proof.A >> proof.z;
+        fin >> proof.A >> proof.z; 
         return fin;
     }
 

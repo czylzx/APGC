@@ -315,7 +315,7 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
     fin.close(); 
 
     //save proof 
-    std::ofstream fout; 
+    //std::ofstream fout; 
     fout.open(APGC_CTx_File, std::ios::binary); 
     fout << newCTx.plaintext_wellformed_proof;
     fout << newCTx.plaintext_sumzero_proof;
@@ -333,7 +333,7 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
     fout.close();
 
     // calculate the size of ctx_file
-    std::ifstream fin; 
+    //std::ifstream fin; 
     fin.open(APGC_CTx_File, std::ios::ate | std::ios::binary);
     auto sum_size = fin.tellg();
     std::cout << APGC_CTx_File << " size = " << sum_size << " bytes" << std::endl;

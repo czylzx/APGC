@@ -88,7 +88,7 @@ struct Proof
 
     std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
     {
-        fin >> proof.A >> proof.T1 >> proof.T2 >> proof.t >> proof.tau << proof.mu;
+        fin >> proof.A >> proof.T1 >> proof.T2 >> proof.t >> proof.tau >> proof.mu;
         fin >> proof.ip_proof;
         return fin;
     }

@@ -1,6 +1,6 @@
 
-#ifndef BULLET_PROOF_HPP_
-#define BULLET_PROOF_HPP_
+#ifndef BULLET_PROOF2_HPP_
+#define BULLET_PROOF2_HPP_
 
 #include "innerproduct_proof.hpp" 
 

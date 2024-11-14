@@ -83,11 +83,6 @@ namespace Solvent_Equal
         fin >> proof.amorhom_proof >>proof.linbit_proof >> proof.kbit_proof >> proof.zkdl_product_proof >> proof.f_zkdl >> proof.Ax;
         return fin;
     }
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> d1213da086a5033ef7f407cb023d1121b86b6ec1
     /* (Protocol 2 on pp.15) */
     PP Setup(ECPoint g, ECPoint h, size_t VECTOR_LEN)
     {
