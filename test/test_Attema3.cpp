@@ -1,6 +1,6 @@
 // #define DEBUG
 
-#include "../zkp/compare/nizk_Attema3.hpp"
+#include "../zkp/nizk/nizk_Attema3.hpp"
 #include "../crypto/setup.hpp"
 
 size_t GetTheNthBit(size_t index, size_t n)
