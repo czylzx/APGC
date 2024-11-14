@@ -81,8 +81,8 @@ struct Witness
 struct Proof
 {
     Koon::Proof koon_proof;
-    Bullet::Proof bullet_proof_one;
-    Bullet::Proof bullet_proof_two;
+    Bullet_kreceiver::Proof bullet_proof_one;
+    Bullet_kreceiver::Proof bullet_proof_two;
 };
  
     std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
@@ -106,14 +106,14 @@ PP Setup(size_t N, size_t k)
     pp.g = GenRandomGenerator();
     pp.u = GenRandomGenerator();
 
-    // srand(time(0));
+    srand(time(0));
     // size_t range = log2(N);
     // size_t index = rand() % range;
     // pp.k = 1;
     // for(auto i=0;i<index;i++){
     //     pp.k = pp.k * 2;
     // }
-    pp,k = k;
+    pp.k = k;
 
     pp.u_new_koon = GenRandomGenerator();
     pp.vec_g_koon = GenRandomECPointVector(N);
@@ -199,7 +199,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     
     // bullet proof for v
     // bullet one pp 
-    Bullet::PP bullet_pp_one = Bullet::Setup(range_len,max_agg_num);
+    Bullet_kreceiver::PP bullet_pp_one = Bullet_kreceiver::Setup(range_len,max_agg_num);
     bullet_pp_one.g = pp.g;
     bullet_pp_one.h = pp.h;
     bullet_pp_one.u = pp.u;
@@ -208,11 +208,11 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     bullet_pp_one.vec_h = pp.vec_h_range1;
 
     // bullet one instance
-    Bullet::Instance bullet_instance_one;
+    Bullet_kreceiver::Instance bullet_instance_one;
     bullet_instance_one.C = GenRandomECPointVector(1);
 
     // bullet one witness
-    Bullet::Witness bullet_witness_one;
+    Bullet_kreceiver::Witness bullet_witness_one;
     bullet_witness_one.r = GenRandomBigIntVectorLessThan(1,order);
     bullet_witness_one.r[0] = tau;
     bullet_witness_one.v = witness.vec_V;
@@ -221,11 +221,11 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     std::string bulllet_transcript_str_one = "";
 
     // call bullet proof
-    Bullet::Prove(bullet_pp_one,bullet_instance_one,bullet_witness_one,bulllet_transcript_str_one,proof.bullet_proof_one);
+    Bullet_kreceiver::Prove(bullet_pp_one,bullet_instance_one,bullet_witness_one,bulllet_transcript_str_one,proof.bullet_proof_one);
 
     // bullet proof for v-1
     // bullet two pp 
-    Bullet::PP bullet_pp_two = Bullet::Setup(range_len,max_agg_num);
+    Bullet_kreceiver::PP bullet_pp_two = Bullet_kreceiver::Setup(range_len,max_agg_num);
     bullet_pp_two.g = pp.g;
     bullet_pp_two.h = pp.h;
     bullet_pp_two.u = pp.u;
@@ -234,11 +234,11 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     bullet_pp_two.vec_h = pp.vec_h_range2;
 
     // bullet one instance
-    Bullet::Instance bullet_instance_two;
+    Bullet_kreceiver::Instance bullet_instance_two;
     bullet_instance_two.C = GenRandomECPointVector(1);
 
     // bullet one witness
-    Bullet::Witness bullet_witness_two;
+    Bullet_kreceiver::Witness bullet_witness_two;
     bullet_witness_two.r = GenRandomBigIntVectorLessThan(1,order);
     bullet_witness_two.r[0] = tau;
     bullet_witness_two.v = GenRandomBigIntVectorLessThan(K,order);
@@ -250,7 +250,7 @@ Proof Prove(PP &pp, Instance &instance, Witness &witness, std::string &transcrip
     std::string bulllet_transcript_str_two = "";
 
     // call bullet proof
-    Bullet::Prove(bullet_pp_two,bullet_instance_two,bullet_witness_two,bulllet_transcript_str_two,proof.bullet_proof_two);
+    Bullet_kreceiver::Prove(bullet_pp_two,bullet_instance_two,bullet_witness_two,bulllet_transcript_str_two,proof.bullet_proof_two);
 
     return proof;
 
@@ -365,7 +365,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     // check condition 2    
     // bullet verify for v
     // bullet one pp 
-    Bullet::PP bullet_pp_one = Bullet::Setup(range_len,max_agg_num);
+    Bullet_kreceiver::PP bullet_pp_one = Bullet_kreceiver::Setup(range_len,max_agg_num);
     bullet_pp_one.g = pp.g;
     bullet_pp_one.h = pp.h;
     bullet_pp_one.u = pp.u;
@@ -374,7 +374,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     bullet_pp_one.vec_h = pp.vec_h_range1;
 
     // bullet one instance
-    Bullet::Instance bullet_instance_one;
+    Bullet_kreceiver::Instance bullet_instance_one;
     bullet_instance_one.C = GenRandomECPointVector(1);
     bullet_instance_one.C[0] = G * exp_x[M].ModInverse(order);
 
@@ -382,14 +382,14 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     std::string bulllet_transcript_str_one = "";
 
     // call bullet proof
-    vec_condition[1] = Bullet::Verify(bullet_pp_one,bullet_instance_one,bulllet_transcript_str_one,proof.bullet_proof_one);
+    vec_condition[1] = Bullet_kreceiver::Verify(bullet_pp_one,bullet_instance_one,bulllet_transcript_str_one,proof.bullet_proof_one);
 
 
 
     // check condition 3
     // bullet proof for v-1
     // bullet two pp 
-    Bullet::PP bullet_pp_two = Bullet::Setup(range_len,max_agg_num);
+    Bullet_kreceiver::PP bullet_pp_two = Bullet_kreceiver::Setup(range_len,max_agg_num);
     bullet_pp_two.g = pp.g;
     bullet_pp_two.h = pp.h;
     bullet_pp_two.u = pp.u;
@@ -402,7 +402,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     for(auto i=1;i<K;i++){
         temp += pp.h * vec_e_k[i];
     }
-    Bullet::Instance bullet_instance_two;
+    Bullet_kreceiver::Instance bullet_instance_two;
     bullet_instance_two.C = GenRandomECPointVector(1);
     bullet_instance_two.C[0] = G * exp_x[M].ModInverse(order) + temp.Invert();
 
@@ -410,7 +410,7 @@ bool Verify(PP &pp, Instance &instance, std::string &transcript_str, Proof &proo
     std::string bulllet_transcript_str_two = "";
 
     // call bullet proof
-    vec_condition[2] = Bullet::Verify(bullet_pp_two,bullet_instance_two,bulllet_transcript_str_two,proof.bullet_proof_two);
+    vec_condition[2] = Bullet_kreceiver::Verify(bullet_pp_two,bullet_instance_two,bulllet_transcript_str_two,proof.bullet_proof_two);
 
 
     bool Validity = vec_condition[0] && vec_condition[1] && vec_condition[2];
