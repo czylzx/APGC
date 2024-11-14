@@ -1,6 +1,6 @@
 // #define DEBUG
 
-#include "../zkp/compare/nizk_ACF_koon.hpp"
+#include "../zkp/nizk/nizk_ACF_koon.hpp"
 #include "../crypto/setup.hpp"
 
 size_t GetTheNthBit(size_t index, size_t n)
