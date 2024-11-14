@@ -67,8 +67,9 @@ void test_nizk_Kreceiver(bool flag)
     std::cout << "begin the test of Kreceiver proof >>>" << std::endl;
 
     size_t N_max = 64;
+    size_t k = 4;
     
-    Kreceiver::PP pp = Kreceiver::Setup(N_max);
+    Kreceiver::PP pp = Kreceiver::Setup(N_max, k);
     Kreceiver::Instance instance; 
     Kreceiver::Witness witness;  
     std::string transcript_str;

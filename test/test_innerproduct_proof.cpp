@@ -43,7 +43,6 @@ void test_innerproduct_proof()
     transcript_str += instance.P.ToByteString(); 
 
     InnerProduct::Prove(pp, instance, witness, transcript_str, proof);
-    
     auto end_time = std::chrono::steady_clock::now(); // end to count the time
     auto running_time = end_time - start_time;
     std::cout << "inner-product proof generation takes time = " 

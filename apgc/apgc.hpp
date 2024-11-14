@@ -18,6 +18,7 @@ this hpp implements the APGC functionality
 #include "../zkp/nizk/nizk_any_out_of_many.hpp"
 #include "../zkp/apgcproofs/apgc_sdr_solvent_equal.hpp"
 #include "../zkp/nizk/nizk_sdr_trans.hpp"
+#include "../zkp/nizk/nizk_k_receiver.hpp"
 
 #define DEMO           // demo mode 
 //#define DEBUG        // show debug information 
@@ -41,12 +42,13 @@ struct PP{
     Bullet::PP bullet_part; 
     TwistedExponentialElGamal::PP enc_part;
     SdrTrans::PP sdr_trans;
-    SdrTrans::PP sdr_trans_receiver;
+    Kreceiver::PP Kreceiver_pp;
+    //SdrTrans::PP sdr_trans_receiver;
     WellFormProduct::PP wellform_part;
     Solvent_Equal::PP solvent_equal_part;
     AnyOutOfMany::PP any_out_of_many_part;
     SumZero::PP sum_zero_part;
-    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_part;
+    //MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_part;
     ECPoint pka; // supervisor's pk
 };
 
@@ -256,16 +258,18 @@ struct ToManyCTx{
     TwistedExponentialElGamal::CT refresh_updated_ct;
     // validity proof
     WellFormProduct::Proof plaintext_wellformed_proof;
-    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
+    //MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
     SumZero::Proof plaintext_sumzero_proof;
     AnyOutOfMany::Proof slack_participant_proof;
     Solvent_Equal::Proof solvent_equal_proof;
     Bullet::Proof bullet_right_solvent_proof;
 
     SdrTrans::Proof sdr_trans_proof_sender;
-    SdrTrans::Proof sdr_trans_proof_receiver;
+    Kreceiver::Proof kreceiver_proof;
 
-    std::vector<PlaintextEquality::Proof> vec_plaintext_equality_proof;    
+
+    //SdrTrans::Proof sdr_trans_proof_receiver;
+
 
 };
 
@@ -284,24 +288,59 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
     
     // save sn
     fout << newCTx.sn; 
-     
-    // save memo info
-  
+    fout << newCTx.k;
+
     for(auto i = 0; i < newCTx.vec_pk.size(); i++){
         fout << newCTx.vec_pk[i];
     }
     for(auto i = 0; i < newCTx.vec_participant_transfer_ct.size(); i++){
         fout << newCTx.vec_participant_transfer_ct[i];
     } 
+    for(auto i = 0; i < newCTx.vec_participant_transfer_ct.size();i++)
+    {
+        fout << newCTx.vec_participant_transfer_ct[i];
+    }
     
+    fout << newCTx.vector_commitment_B_l0;
+    fout << newCTx.vector_commitment_B_l1;
+
+    fout << newCTx.refresh_updated_ct;
+
+    fout.close();
+
+    std::ifstream fin; 
+    fin.open(APGC_CTx_File, std::ios::ate | std::ios::binary);
+    auto base_size = fin.tellg();
+    std::cout << APGC_CTx_File << " base_size = " << base_size<< " bytes" << std::endl;
+    fin.close(); 
+
+    //save proof 
+    std::ofstream fout; 
+    fout.open(APGC_CTx_File, std::ios::binary); 
+    fout << newCTx.plaintext_wellformed_proof;
+    fout << newCTx.plaintext_sumzero_proof;
+    fout << newCTx.slack_participant_proof;
+    fout << newCTx.bullet_right_solvent_proof;
+    fout << newCTx.sdr_trans_proof_sender;
+    //fout << newCTx.sdr_trans_proof_receiver;
+    fout << newCTx.solvent_equal_proof;
+
+    if(newCTx.k > 1)
+    {
+        fout << newCTx.kreceiver_proof;
+    } 
 
     fout.close();
 
     // calculate the size of ctx_file
     std::ifstream fin; 
     fin.open(APGC_CTx_File, std::ios::ate | std::ios::binary);
-    std::cout << APGC_CTx_File << " size = " << fin.tellg() << " bytes" << std::endl;
+    auto sum_size = fin.tellg();
+    std::cout << APGC_CTx_File << " size = " << sum_size << " bytes" << std::endl;
     fin.close(); 
+
+    auto proof_size = sum_size - base_size;
+    std::cout << APGC_CTx_File << " size = " << proof_size << " bytes" << std::endl;
 }
 
 // std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
@@ -409,6 +448,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     std::vector<ECPoint> vec_pk(n);
     std::vector<TwistedExponentialElGamal::MRCT> vec_participant_transfer_ct(n);
     std::vector<BigInt> vec_r(n);
+    std::vector<BigInt> vec_r_kreceiver(k);
 
     newCTx.vec_pk.resize(n);
     newCTx.vec_participant_transfer_ct.resize(n);
@@ -436,6 +476,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
                 vec_pk_multi[1] = pp.pka;
                 vec_r[i] = GenRandomBigIntLessThan(order);
                 newCTx.vec_participant_transfer_ct[i] = TwistedExponentialElGamal::Enc(pp.enc_part, vec_pk_multi, vec_v[cnt], vec_r[i]);
+                vec_r_kreceiver[cnt] = vec_r[i];
                 cnt++;
             }
             else
@@ -500,9 +541,9 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     WellFormProduct::Prove(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
                         plaintext_wellform_product_witness, transcript_str, plaintext_wellform_product_proof);
 
-    auto end_time = std::chrono::steady_clock::now();
-    auto time_diff = end_time - start_time;
-    std::cout << "time for generating NIZKPoK for WellFormProduct tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // auto end_time = std::chrono::steady_clock::now();
+    // auto time_diff = end_time - start_time;
+    // std::cout << "time for generating NIZKPoK for WellFormProduct tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     
     newCTx.plaintext_wellformed_proof = plaintext_wellform_product_proof;
 
@@ -511,7 +552,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         PrintSplitLine('-');
     #endif
 
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
     
     SumZero::PP plaintext_sumzero_pp = SumZero::Setup(pp.enc_part.g, n);
     pp.sum_zero_part = plaintext_sumzero_pp;
@@ -527,9 +568,9 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     SumZero::Proof plaintext_sumzero_proof;
     SumZero::Prove(plaintext_sumzero_pp, plaintext_sumzero_instance, plaintext_sumzero_witness, transcript_str, plaintext_sumzero_proof);
 
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for generating NIZKPoK for SumZero tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for generating NIZKPoK for SumZero tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     
     newCTx.plaintext_sumzero_proof = plaintext_sumzero_proof;
     #ifdef DEMO
@@ -540,7 +581,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         std::cout << "3. generate NIZKPoK for slack_participant" << std::endl;  
     #endif
     
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
     AnyOutOfMany::PP slack_participant_pp = AnyOutOfMany::Setup(n, pp.enc_part.g, pp.enc_part.h);
     pp.any_out_of_many_part = slack_participant_pp;
     pp.SLACK_PARTICIPANT_NUM = n -1 -k;
@@ -570,9 +611,10 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     AnyOutOfMany::Proof slack_participant_proof;
     AnyOutOfMany::Prove(slack_participant_pp, slack_participant_instance, slack_participant_witness, slack_participant_proof, transcript_str);
     
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for generating NIZKPoK for slack_participant tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for generating NIZKPoK for slack_participant tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    
     #ifdef DEMO
         PrintSplitLine('-'); 
     #endif
@@ -595,7 +637,8 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
             vec_l0.push_back(bn_0);
         }
     }
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
+
     BigInt rb_l0 = GenRandomBigIntLessThan(order);
     ECPoint B_l0 = ECPointVectorMul(base_g, vec_l0) + base_h * rb_l0;
     newCTx.vector_commitment_B_l0 = B_l0;
@@ -616,9 +659,10 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     Bullet::Proof bullet_right_solvent_proof;
     transcript_str = "";
     Bullet::Prove(pp.bullet_part, bullet_instance_solvent, bullet_witness_solvent, transcript_str, bullet_right_solvent_proof);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for generating NIZKPoK for bullet = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for generating NIZKPoK for bullet = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    
     #ifdef DEMO
         PrintSplitLine('-'); 
     #endif
@@ -630,7 +674,8 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         sum_ct_right[i] = newCTx.vec_participant_transfer_ct[i].Y + newCTx.vec_participant_balance_ct[i].Y;
     }
 
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
+
     Solvent_Equal::PP solvent_equal_pp = Solvent_Equal::Setup(pp.enc_part.g, pp.enc_part.h, n);
     pp.solvent_equal_part = solvent_equal_pp;
     Solvent_Equal::Instance solvent_equal_instance;
@@ -653,9 +698,9 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     transcript_str = "";
 
     Solvent_Equal::Prove(solvent_equal_pp, solvent_equal_instance, solvent_equal_witness, transcript_str, solvent_equal_proof);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for generating NIZKPoK for solvent tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for generating NIZKPoK for solvent tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
@@ -665,7 +710,8 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         std::cout << "5. generate NIZKPoK for solvent" << std::endl;  
     #endif
 
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
+
     SdrTrans::PP sdr_pp = SdrTrans::Setup(n);
     
     sdr_pp.g = pp.enc_part.g;
@@ -689,9 +735,9 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     SdrTrans::Proof sdr_proof;
     transcript_str = "";
     sdr_proof = SdrTrans::Prove(sdr_pp, sdr_instance, sdr_witness, transcript_str, 0);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for generating NIZKPoK for sdr tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for generating NIZKPoK for sdr tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
@@ -701,94 +747,115 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         std::cout << "6. generate NIZKPoK for receiver" << std::endl;  
     #endif
 
-    start_time = std::chrono::steady_clock::now();
-    SdrTrans::PP sdr_pp_receiver = SdrTrans::Setup(n);
+    if(k > 1)
+    {
+        Kreceiver::PP kreceiver_pp = Kreceiver::Setup(n, k);
+        kreceiver_pp.g = pp.enc_part.g;
+        kreceiver_pp.h = pp.enc_part.h;
+        pp.Kreceiver_pp = kreceiver_pp;
+        Kreceiver::Witness kreceiver_witness;
+        Kreceiver::Instance kreceiver_instance;
+        for(auto i = 0;i < n; i++)
+        {
+            kreceiver_instance.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+        }
+        kreceiver_witness.vec_L = vec_index;
+        kreceiver_witness.vec_V = vec_v;
+        kreceiver_witness.vec_R = vec_r_kreceiver;
+
+        Kreceiver::Proof kreceiver_proof;
+        transcript_str ="";
+        kreceiver_proof = Kreceiver::Prove(kreceiver_pp, kreceiver_instance, kreceiver_witness, transcript_str);
+        newCTx.kreceiver_proof = kreceiver_proof;
+    }
+    // start_time = std::chrono::steady_clock::now();
+    // SdrTrans::PP sdr_pp_receiver = SdrTrans::Setup(n);
         
-    sdr_pp_receiver.g = pp.enc_part.g;
-    sdr_pp_receiver.h = pp.enc_part.h;
-    sdr_pp_receiver.vec_g_1oon = base_g;
-    pp.sdr_trans_receiver = sdr_pp_receiver;
-    size_t receiver_index = vec_index[0];
-    //std::cout << "receiver_index: " << receiver_index <<std::endl;
-    BigInt rb_l1 = GenRandomBigIntLessThan(order);
-    std::vector<BigInt> vec_l1;
+    // sdr_pp_receiver.g = pp.enc_part.g;
+    // sdr_pp_receiver.h = pp.enc_part.h;
+    // sdr_pp_receiver.vec_g_1oon = base_g;
+    // pp.sdr_trans_receiver = sdr_pp_receiver;
+    // size_t receiver_index = vec_index[0];
+    // //std::cout << "receiver_index: " << receiver_index <<std::endl;
+    // BigInt rb_l1 = GenRandomBigIntLessThan(order);
+    // std::vector<BigInt> vec_l1;
 
-    for(auto i = 0; i < m; i ++ ){
-        if(GetTheNthBit(receiver_index, i) == 1){
-            //std::cout<<"i = "<<i<<std::endl;
-            vec_l1.push_back(bn_1);
-        }
-        else{
-            vec_l1.push_back(bn_0);
-        }
-    }
+    // for(auto i = 0; i < m; i ++ ){
+    //     if(GetTheNthBit(receiver_index, i) == 1){
+    //         //std::cout<<"i = "<<i<<std::endl;
+    //         vec_l1.push_back(bn_1);
+    //     }
+    //     else{
+    //         vec_l1.push_back(bn_0);
+    //     }
+    // }
 
-    ECPoint B_l1 = ECPointVectorMul(base_g, vec_l1) + base_h * rb_l1;
-    newCTx.vector_commitment_B_l1 = B_l1;
-    SdrTrans::Instance sdr_instance_receiver;
-    sdr_instance_receiver.B = B_l1;
-    sdr_instance_receiver.vec_C.resize(n);
-    for(auto i = 0; i < n; i++){
-        sdr_instance_receiver.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
-    }
-    SdrTrans::Witness sdr_witness_receiver;
-    sdr_witness_receiver.l = receiver_index;
-    //sdr_witness.v = vec_v[0];
-    sdr_witness_receiver.v = v;
-    sdr_witness_receiver.rL = vec_r[receiver_index];
-    sdr_witness_receiver.rR = rb_l1;
+    // ECPoint B_l1 = ECPointVectorMul(base_g, vec_l1) + base_h * rb_l1;
+    // newCTx.vector_commitment_B_l1 = B_l1;
+    // SdrTrans::Instance sdr_instance_receiver;
+    // sdr_instance_receiver.B = B_l1;
+    // sdr_instance_receiver.vec_C.resize(n);
+    // for(auto i = 0; i < n; i++){
+    //     sdr_instance_receiver.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    // }
+    // SdrTrans::Witness sdr_witness_receiver;
+    // sdr_witness_receiver.l = receiver_index;
+    // //sdr_witness.v = vec_v[0];
+    // sdr_witness_receiver.v = v;
+    // sdr_witness_receiver.rL = vec_r[receiver_index];
+    // sdr_witness_receiver.rR = rb_l1;
 
  
 
-    SdrTrans::Proof sdr_proof_receiver;
-    transcript_str = "";
-    sdr_proof_receiver = SdrTrans::Prove(sdr_pp_receiver, sdr_instance_receiver, sdr_witness_receiver, transcript_str, 1);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for generating NIZKPoK for sdr tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
-    #ifdef DEMO
-        PrintSplitLine('-');
-    #endif
-    newCTx.sdr_trans_proof_receiver = sdr_proof_receiver;
+    // SdrTrans::Proof sdr_proof_receiver;
+    // transcript_str = "";
+    // sdr_proof_receiver = SdrTrans::Prove(sdr_pp_receiver, sdr_instance_receiver, sdr_witness_receiver, transcript_str, 1);
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for generating NIZKPoK for sdr tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // #ifdef DEMO
+    //     PrintSplitLine('-');
+    // #endif
+    // newCTx.sdr_trans_proof_receiver = sdr_proof_receiver;
 
-    #ifdef DEMO
-        std::cout << "7. generate NIZKPoK for supervise" << std::endl;  
-    #endif
-    start_time = std::chrono::steady_clock::now();
-    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);
-    pp.superivisor_plaintext_wellformed_part = superivisor_plaintext_wellformed_pp;
-    MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
+    // #ifdef DEMO
+    //     std::cout << "7. generate NIZKPoK for supervise" << std::endl;  
+    // #endif
+    // start_time = std::chrono::steady_clock::now();
+    // MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    // pp.superivisor_plaintext_wellformed_part = superivisor_plaintext_wellformed_pp;
+    // MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
 
-    superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
-    superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
-    superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
-    for(auto i = 0; i < n; i++){
-        superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
-        superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
-    }
+    // superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
+    // superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
+    // superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
+    // for(auto i = 0; i < n; i++){
+    //     superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
+    //     superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    // }
 
-    MutiliPlaintextEquality::Witness superivisor_plaintext_wellformed_witness;
+    // MutiliPlaintextEquality::Witness superivisor_plaintext_wellformed_witness;
 
-    superivisor_plaintext_wellformed_witness.vec_r = vec_r; // r is as same as the plaintext_wellform_product_witness
-    superivisor_plaintext_wellformed_witness.vec_v = vec_v_plaintext_wellform;// v is as same as the plaintext_wellform_product_witness
-    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
-    transcript_str = "";
-    MutiliPlaintextEquality::Prove(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
-                        superivisor_plaintext_wellformed_witness, transcript_str, superivisor_plaintext_wellformed_proof);
+    // superivisor_plaintext_wellformed_witness.vec_r = vec_r; // r is as same as the plaintext_wellform_product_witness
+    // superivisor_plaintext_wellformed_witness.vec_v = vec_v_plaintext_wellform;// v is as same as the plaintext_wellform_product_witness
+    // MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
+    // transcript_str = "";
+    // MutiliPlaintextEquality::Prove(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
+    //                     superivisor_plaintext_wellformed_witness, transcript_str, superivisor_plaintext_wellformed_proof);
                     
-    newCTx.superivisor_plaintext_wellformed_proof = superivisor_plaintext_wellformed_proof;
+    // newCTx.superivisor_plaintext_wellformed_proof = superivisor_plaintext_wellformed_proof;
 
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for generating NIZKPoK for supervise tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for generating NIZKPoK for supervise tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
-    //auto end_time = std::chrono::steady_clock::now(); 
+    auto end_time = std::chrono::steady_clock::now(); 
 
-    // auto running_time = end_time - start_time;
-    // std::cout << ctx_type << " ctx generation takes time = " 
-    // << std::chrono::duration <double, std::milli> (running_time).count() << " ms" << std::endl;
+    auto running_time = end_time - start_time;
+    std::cout << ctx_type << " ctx generation takes time = " 
+    << std::chrono::duration <double, std::milli> (running_time).count() << " ms" << std::endl;
 
     return newCTx; 
 }
@@ -829,9 +896,9 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     condition1 = WellFormProduct::Verify(plaintext_wellform_product_pp, plaintext_wellform_product_instance, 
                         transcript_str, plaintext_wellform_product_proof);
 
-    auto end_time = std::chrono::steady_clock::now();
-    auto time_diff = end_time - start_time;
-    std::cout << "time for verifying NIZKPoK for WellFormProduct tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // auto end_time = std::chrono::steady_clock::now();
+    // auto time_diff = end_time - start_time;
+    // std::cout << "time for verifying NIZKPoK for WellFormProduct tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
@@ -843,7 +910,8 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 
     // check V2
     bool condition2 = false; 
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
+
     SumZero::PP plaintext_sumzero_pp = pp.sum_zero_part;
     SumZero::Instance plaintext_sumzero_instance;
     plaintext_sumzero_instance.C = newCTx.vec_participant_transfer_ct[0].Y;
@@ -853,9 +921,9 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     SumZero::Proof plaintext_sumzero_proof = newCTx.plaintext_sumzero_proof;
     transcript_str = "";
     condition2 = SumZero::Verify(plaintext_sumzero_pp, plaintext_sumzero_instance, transcript_str, plaintext_sumzero_proof);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for verifying NIZKPoK for SumZero tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for verifying NIZKPoK for SumZero tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
@@ -866,7 +934,8 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 
     
     bool condition3 = false; 
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
+
     AnyOutOfMany::PP slack_participant_pp = pp.any_out_of_many_part;
     AnyOutOfMany::Instance slack_participant_instance;
     slack_participant_instance.k = BigInt(pp.SLACK_PARTICIPANT_NUM);
@@ -879,9 +948,9 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     AnyOutOfMany::Proof slack_participant_proof = newCTx.slack_participant_proof;
     transcript_str = "";
     condition3 = AnyOutOfMany::Verify(slack_participant_pp, slack_participant_instance, slack_participant_proof, transcript_str);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for verifying NIZKPoK for slack_participant tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for verifying NIZKPoK for slack_participant tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
@@ -891,7 +960,8 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     #endif
 
     bool condition4;
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
+
     Bullet::PP bullet_pp = pp.bullet_part;
     Bullet::Instance bullet_instance_solvent;
     bullet_instance_solvent.C = {newCTx.refresh_updated_ct.Y};
@@ -899,9 +969,9 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     Bullet::Proof bullet_witness_solvent = newCTx.bullet_right_solvent_proof;
     transcript_str = "";
     condition4 = Bullet::Verify(bullet_pp, bullet_instance_solvent, transcript_str, bullet_witness_solvent);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for verifying NIZKPoK for bullet = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for verifying NIZKPoK for bullet = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
 
     #ifdef DEMO
         PrintSplitLine('-');
@@ -913,7 +983,8 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 
     // check balance proof
     bool condition5;
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
+
     Solvent_Equal::PP solvent_equal_pp = pp.solvent_equal_part;
     Solvent_Equal::Instance solvent_equal_instance;
     solvent_equal_instance.B = newCTx.vector_commitment_B_l0;
@@ -932,9 +1003,9 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     Solvent_Equal::Proof solvent_equal_proof = newCTx.solvent_equal_proof;
     transcript_str = "";
     condition5 = Solvent_Equal::Verify(solvent_equal_pp, solvent_equal_instance, transcript_str, solvent_equal_proof);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for verifying NIZKPoK for solvent tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for verifying NIZKPoK for solvent tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
@@ -946,7 +1017,8 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
 
     // check the NIZK proof for refresh correctness
     bool condition6;
-    start_time = std::chrono::steady_clock::now();
+    //start_time = std::chrono::steady_clock::now();
+    
     SdrTrans::PP sdr_pp = pp.sdr_trans;
     SdrTrans::Instance sdr_instance;
     sdr_instance.B = newCTx.vector_commitment_B_l0;
@@ -958,9 +1030,9 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     SdrTrans::Proof sdr_proof = newCTx.sdr_trans_proof_sender;
     transcript_str = "";
     condition6 = SdrTrans::Verify(sdr_pp, sdr_instance,transcript_str, sdr_proof,0);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for verifying NIZKPoK for sdr tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for verifying NIZKPoK for sdr tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
     #ifdef DEMO
         PrintSplitLine('-');
     #endif
@@ -969,58 +1041,75 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
         else std::cout << "NIZKPoK for SdrTrans rejects  " << std::endl; 
     #endif
 
-    bool condition7;
-    start_time = std::chrono::steady_clock::now();
-    SdrTrans::PP sdr_pp_receiver = pp.sdr_trans_receiver;
-    SdrTrans::Instance sdr_instance_receiver;
-    sdr_instance_receiver.B = newCTx.vector_commitment_B_l1;
-    sdr_instance_receiver.vec_C.resize(n);
-    for(auto i = 0; i < n; i++){
-        sdr_instance_receiver.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    bool condition7 ;
+    if( newCTx.k ==1)
+    {
+        condition7 =true;
     }
-
-    SdrTrans::Proof sdr_proof_receiver = newCTx.sdr_trans_proof_receiver;
-    transcript_str = "";
-    condition7 = SdrTrans::Verify(sdr_pp_receiver, sdr_instance_receiver,transcript_str, sdr_proof_receiver,1);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for verifying NIZKPoK for sdr tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
-    #ifdef DEMO
-        PrintSplitLine('-');
-    #endif
-    #ifdef DEMO
-        if (condition7) std::cout << "NIZKPoK for SdrTrans_receiver accepts  " << std::endl; 
-        else std::cout << "NIZKPoK for SdrTrans_receiver rejects  " << std::endl; 
-    #endif
-    bool condition8;
-    start_time = std::chrono::steady_clock::now();
-    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = pp.superivisor_plaintext_wellformed_part;
-    MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
-    superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
-    superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
-    superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
-    for(auto i = 0; i < n; i++){
-        superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
-        superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    else if(newCTx.k > 1)
+    {
+        Kreceiver::PP kreceiver_pp = pp.Kreceiver_pp;
+        Kreceiver::Instance kreceiver_instance;
+        for(auto i = 0;i < n; i++)
+        {
+            kreceiver_instance.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+        }
+        Kreceiver::Proof kreceiver_proof = newCTx.kreceiver_proof;
+        transcript_str ="";
+         condition7 = Kreceiver::Verify(kreceiver_pp, kreceiver_instance, transcript_str, kreceiver_proof);
+      
     }
+    // start_time = std::chrono::steady_clock::now();
+    // SdrTrans::PP sdr_pp_receiver = pp.sdr_trans_receiver;
+    // SdrTrans::Instance sdr_instance_receiver;
+    // sdr_instance_receiver.B = newCTx.vector_commitment_B_l1;
+    // sdr_instance_receiver.vec_C.resize(n);
+    // for(auto i = 0; i < n; i++){
+    //     sdr_instance_receiver.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    // }
 
-    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof = newCTx.superivisor_plaintext_wellformed_proof;
-    transcript_str = "";
-    condition8 = MutiliPlaintextEquality::Verify(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
-                        transcript_str, superivisor_plaintext_wellformed_proof);
-    end_time = std::chrono::steady_clock::now();
-    time_diff = end_time - start_time;
-    std::cout << "time for verifying NIZKPoK for supervise tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
-    #ifdef DEMO
-        PrintSplitLine('-');
-    #endif
+    // SdrTrans::Proof sdr_proof_receiver = newCTx.sdr_trans_proof_receiver;
+    // transcript_str = "";
+    // condition7 = SdrTrans::Verify(sdr_pp_receiver, sdr_instance_receiver,transcript_str, sdr_proof_receiver,1);
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for verifying NIZKPoK for sdr tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // #ifdef DEMO
+    //     PrintSplitLine('-');
+    // #endif
+    // #ifdef DEMO
+    //     if (condition7) std::cout << "NIZKPoK for SdrTrans_receiver accepts  " << std::endl; 
+    //     else std::cout << "NIZKPoK for SdrTrans_receiver rejects  " << std::endl; 
+    // #endif
+    // bool condition8;
+    // start_time = std::chrono::steady_clock::now();
+    // MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = pp.superivisor_plaintext_wellformed_part;
+    // MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
+    // superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
+    // superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
+    // superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
+    // for(auto i = 0; i < n; i++){
+    //     superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
+    //     superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    // }
 
-    #ifdef DEMO
-        if (condition8) std::cout << "NIZKPoK for MutiliPlaintextEquality accepts  " << std::endl; 
-        else std::cout << "NIZKPoK for MutiliPlaintextEquality rejects  " << std::endl; 
-    #endif
+    // MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof = newCTx.superivisor_plaintext_wellformed_proof;
+    // transcript_str = "";
+    // condition8 = MutiliPlaintextEquality::Verify(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
+    //                     transcript_str, superivisor_plaintext_wellformed_proof);
+    // end_time = std::chrono::steady_clock::now();
+    // time_diff = end_time - start_time;
+    // std::cout << "time for verifying NIZKPoK for supervise tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
+    // #ifdef DEMO
+    //     PrintSplitLine('-');
+    // #endif
+
+    // #ifdef DEMO
+    //     if (condition8) std::cout << "NIZKPoK for MutiliPlaintextEquality accepts  " << std::endl; 
+    //     else std::cout << "NIZKPoK for MutiliPlaintextEquality rejects  " << std::endl; 
+    // #endif
     
-    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7 && condition8; 
+    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7 ; 
 
     std::string ctx_file = GetCTxFileName(newCTx); 
     #ifdef DEMO
@@ -1028,11 +1117,11 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
         else std::cout << ctx_file << " is invalid <<<<<<" << std::endl;
     #endif
 
-    //auto end_time = std::chrono::steady_clock::now(); 
+    auto end_time = std::chrono::steady_clock::now(); 
 
-    // auto running_time = end_time - start_time;
-    // std::cout << ctx_type << " ctx verification takes time = " 
-    // << std::chrono::duration <double, std::milli> (running_time).count() << " ms" << std::endl;
+    auto running_time = end_time - start_time;
+    std::cout << ctx_type << " ctx verification takes time = " 
+    << std::chrono::duration <double, std::milli> (running_time).count() << " ms" << std::endl;
 
     return Validity; 
 }

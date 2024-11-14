@@ -59,7 +59,20 @@ std::ifstream &operator>>(std::ifstream &fin, InnerProduct::Proof &proof)
     fin >> proof.a >> proof.b; 
     return fin; 
 }
-
+void saveProof(InnerProduct::Proof &proof, std::string SP_File)
+{
+    std::ofstream fout;
+    fout.open(SP_File, std::ios::binary); 
+    fout << proof;
+    fout.close(); 
+}
+void fectchProof(InnerProduct::Proof &proof, std::string SP_File)
+{
+    std::ifstream fin; 
+    fin.open(SP_File, std::ios::binary); 
+    fin >> proof; 
+    fin.close();
+}
 
 std::string ProofToByteString(Proof &proof)
 {

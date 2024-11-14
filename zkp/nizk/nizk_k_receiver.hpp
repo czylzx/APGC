@@ -87,7 +87,7 @@ struct Proof
  
 
 /* Setup algorithm */ 
-PP Setup(size_t N)
+PP Setup(size_t N, size_t k)
 {
     PP pp; 
 
@@ -95,13 +95,14 @@ PP Setup(size_t N)
     pp.g = GenRandomGenerator();
     pp.u = GenRandomGenerator();
 
-    srand(time(0));
-    size_t range = log2(N);
-    size_t index = rand() % range;
-    pp.k = 1;
-    for(auto i=0;i<index;i++){
-        pp.k = pp.k * 2;
-    }
+    // srand(time(0));
+    // size_t range = log2(N);
+    // size_t index = rand() % range;
+    // pp.k = 1;
+    // for(auto i=0;i<index;i++){
+    //     pp.k = pp.k * 2;
+    // }
+    pp,k = k;
 
     pp.u_new_koon = GenRandomGenerator();
     pp.vec_g_koon = GenRandomECPointVector(N);

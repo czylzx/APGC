@@ -229,8 +229,8 @@ TARGET_LINK_LIBRARIES(test_nizk_multi_plaintext_equality ${OPENSSL_LIBRARIES} Op
 ADD_EXECUTABLE(test_sdr_trans test/test_sdr_trans.cpp)
 TARGET_LINK_LIBRARIES(test_sdr_trans ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
-ADD_EXECUTABLE(test_apgc test/test_apgc.cpp)
-TARGET_LINK_LIBRARIES(test_apgc ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+# ADD_EXECUTABLE(test_apgc test/test_apgc.cpp)
+# TARGET_LINK_LIBRARIES(test_apgc ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
 ADD_EXECUTABLE(test_kbit test/test_k_bit.cpp)
 TARGET_LINK_LIBRARIES(test_kbit ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
