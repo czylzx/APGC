@@ -43,6 +43,15 @@ void test_innerproduct_proof()
     transcript_str += instance.P.ToByteString(); 
 
     InnerProduct::Prove(pp, instance, witness, transcript_str, proof);
+    std::string sb_name="sb";
+    InnerProduct::saveProof(proof,sb_name);
+    InnerProduct::Proof test_proof; 
+    InnerProduct::fectchProof(test_proof,sb_name);
+    InnerProduct::PrintProof(test_proof);
+    std::cout<<test_proof.vec_L.size()<<std::endl;
+    std::cout<<"sb"<<std::endl;
+    InnerProduct::PrintProof(proof);
+    PrintSplitLine('-');
     auto end_time = std::chrono::steady_clock::now(); // end to count the time
     auto running_time = end_time - start_time;
     std::cout << "inner-product proof generation takes time = " 
