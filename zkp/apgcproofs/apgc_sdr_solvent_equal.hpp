@@ -77,7 +77,7 @@ namespace Solvent_Equal
         return fout;
     }
     
-    std::ifstream &operator>>(std::ifstream &fin,const Proof &proof)
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
     {
         fin >> proof.P_equal >> proof.S_equal >> proof.vec_C >> proof.zs;
         fin >> proof.amorhom_proof >>proof.linbit_proof >> proof.kbit_proof >> proof.zkdl_product_proof >> proof.f_zkdl >> proof.Ax;

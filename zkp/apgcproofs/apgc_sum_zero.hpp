@@ -39,13 +39,13 @@ namespace SumZero
         BigInt z; 
     };
 
-    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+    std::ofstream &operator<<(std::ofstream &fout, Proof &proof)
     {
         fout << proof.A << proof.z;
         return fout;
     }
     
-    std::ifstream &operator>>(std::ifstream &fin,const Proof &proof)
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
     {
         fin >> proof.A >> proof.z; 
         return fin;

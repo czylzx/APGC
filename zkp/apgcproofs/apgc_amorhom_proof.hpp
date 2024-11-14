@@ -59,7 +59,7 @@ namespace AmorHom
         return fout;
     }
     
-    std::ifstream &operator>>(std::ifstream &fin,const Proof &proof)
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
     {
         fin >> proof.eqmdl_proof >> proof.Ap >> proof.Af >> proof.f; 
         return fin;
