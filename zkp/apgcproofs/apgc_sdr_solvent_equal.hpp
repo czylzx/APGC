@@ -70,6 +70,20 @@ namespace Solvent_Equal
         ECPoint Ax;
     }; 
 
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+    {
+        fout << proof.P_equal << proof.S_equal << proof.vec_C << proof.zs;
+        fout << proof.amorhom_proof << proof.linbit_proof << proof.kbit_proof << proof.zkdl_product_proof << proof.f_zkdl << proof.Ax;
+        return fout;
+    }
+    
+    std::ifstream &operator>>(std::ifstream &fin,const Proof &proof)
+    {
+        fin >> proof.P_equal >> proof.S_equal >> proof.vec_C >> proof.zs;
+        fin >> proof.amorhom_proof >>proof.linbit_proof >> proof.kbit_proof >> proof.zkdl_product_proof >> proof.f_zkdl >> proof.Ax;
+        return fin;
+    }
+    
     /* (Protocol 2 on pp.15) */
     PP Setup(ECPoint g, ECPoint h, size_t VECTOR_LEN)
     {
