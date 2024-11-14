@@ -5,7 +5,7 @@
 #include "../../crypto/ec_point.hpp"
 #include "../../crypto/hash.hpp"
 #include "../nizk/nizk_lin_bit.hpp"
-#include "../compare/nizk_amorhom_for_Attema3.hpp"
+#include "../nizk/nizk_amorhom_for_Attema3.hpp"
 #include "../nizk/nizk_kbit.hpp"
 #include "../nizk/nizk_zkdl.hpp"
 
