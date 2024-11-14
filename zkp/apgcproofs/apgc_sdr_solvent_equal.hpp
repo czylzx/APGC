@@ -552,11 +552,7 @@ namespace Solvent_Equal
         ECPoint LEFT = proof.S_equal * (exp_x[m]) + S_prime.Invert();
         bool V5 = (LEFT == pp.u * proof.zs);
 
-        std::cout << "V1 = " << V1 << std::endl;
-        std::cout << "V2 = " << V2 << std::endl;
-        std::cout << "V3 = " << V3 << std::endl;
-        std::cout << "V4 = " << V4 << std::endl;
-        std::cout << "V5 = " << V5 << std::endl;
+       
         Validity = V1 && V2 && V3 && V4 && V5;
         return Validity;
     }

@@ -48,7 +48,7 @@ std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
     return fout; 
 }
 
-std::ifstream &operator>>(std::ifstream &fin, InnerProduct::Proof &proof)
+std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
 {
     fin >> proof.A >> proof.S >> proof.T1 >> proof.T2 >> proof.taux >> proof.mu >> proof.tx; 
     fin >> proof.ip_proof; 

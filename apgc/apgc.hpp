@@ -316,7 +316,7 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
 
     //save proof 
     //std::ofstream fout; 
-    fout.open(APGC_CTx_File, std::ios::binary); 
+    fout.open(APGC_CTx_File, std::ios::binary|std::ios::app); 
     fout << newCTx.plaintext_wellformed_proof;
     fout << newCTx.plaintext_sumzero_proof;
     fout << newCTx.slack_participant_proof;
@@ -336,11 +336,11 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
     //std::ifstream fin; 
     fin.open(APGC_CTx_File, std::ios::ate | std::ios::binary);
     auto sum_size = fin.tellg();
-    std::cout << APGC_CTx_File << " size = " << sum_size << " bytes" << std::endl;
+    std::cout << APGC_CTx_File << " sum_size = " << sum_size << " bytes" << std::endl;
     fin.close(); 
 
     auto proof_size = sum_size - base_size;
-    std::cout << APGC_CTx_File << " size = " << proof_size << " bytes" << std::endl;
+    std::cout << APGC_CTx_File << " proof_size = " << proof_size << " bytes" << std::endl;
 }
 
 // std::string ExtractToSignMessageFromCTx(ToManyCTx &newCTx)
@@ -755,6 +755,7 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
         pp.Kreceiver_pp = kreceiver_pp;
         Kreceiver::Witness kreceiver_witness;
         Kreceiver::Instance kreceiver_instance;
+        kreceiver_instance.vec_C.resize(n);
         for(auto i = 0;i < n; i++)
         {
             kreceiver_instance.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;
@@ -1050,6 +1051,7 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     {
         Kreceiver::PP kreceiver_pp = pp.Kreceiver_pp;
         Kreceiver::Instance kreceiver_instance;
+        kreceiver_instance.vec_C.resize(n);
         for(auto i = 0;i < n; i++)
         {
             kreceiver_instance.vec_C[i] = newCTx.vec_participant_transfer_ct[i].Y;

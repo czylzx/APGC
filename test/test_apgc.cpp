@@ -317,7 +317,7 @@ int main()
 {
     CRYPTO_Initialize();   
     size_t number = 64;
-    size_t kreceiver = 1;
+    size_t kreceiver = 8;
 
     Emulate_APGC_System(number, kreceiver);
 

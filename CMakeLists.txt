@@ -241,6 +241,9 @@ TARGET_LINK_LIBRARIES(test_zkdl ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 ADD_EXECUTABLE(test_koon test/test_koon.cpp)
 TARGET_LINK_LIBRARIES(test_koon ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
 
+ADD_EXECUTABLE(test_k_receiver test/test_k_receiver.cpp)
+TARGET_LINK_LIBRARIES(test_k_receiver ${OPENSSL_LIBRARIES} OpenMP::OpenMP_CXX)
+
 # mcl
 # add_executable(test_mcl test/test_mcl.cpp)
 # target_link_libraries(test_mcl libmcl.a libgmp.a)

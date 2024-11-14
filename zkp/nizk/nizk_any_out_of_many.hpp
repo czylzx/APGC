@@ -212,7 +212,7 @@ void Prove(PP &pp,Instance &instance, Witness &witness, Proof &proof , std::stri
     // compute t(X) 
     BigInt t0 = BigIntVectorModInnerProduct(poly_ll0, poly_rr0, BigInt(order)); 
 
-    t0.Print("t0");
+    //t0.Print("t0");
     BigInt bn_temp1 = BigIntVectorModInnerProduct(poly_ll1, poly_rr0, BigInt(order)); 
     BigInt bn_temp2 = BigIntVectorModInnerProduct(poly_ll0, poly_rr1, BigInt(order));
     BigInt t1 = (bn_temp1 + bn_temp2) % BigInt(order);  
@@ -412,7 +412,7 @@ bool Verify(PP &pp, Instance &instance, Proof &proof, std::string &transcript_st
     BigInt delta_yz = bn_temp1 - z_cubic * BigInt(LEN) % order; 
     //BigInt delta_yz = bn_temp1 - z_cubic; 
     delta_yz = (delta_yz + order ) % order;
-    delta_yz.Print("delta_yz");
+    //delta_yz.Print("delta_yz");
 
 
     // check  
@@ -498,7 +498,7 @@ bool Verify(PP &pp, Instance &instance, Proof &proof, std::string &transcript_st
     std::vector<BigInt> vec_z_plus = BigIntVectorModScalar(vec_y_inverse_power, z_square, BigInt(order)); 
     vec_z = BigIntVectorModAdd(vec_z, vec_z_plus, BigInt(order)); // z + z^2 y^{-i+1}
 
-    std::cout << "vec_z.size() = " << vec_z.size() << std::endl;
+    //std::cout << "vec_z.size() = " << vec_z.size() << std::endl;
 
     std::move(vec_z_minus_unary.begin(), vec_z_minus_unary.end(), vec_a.begin());
     std::move(vec_z.begin(), vec_z.end(), vec_a.begin() + ip_pp.VECTOR_LEN); // LEFT += g^{1 z^n}
