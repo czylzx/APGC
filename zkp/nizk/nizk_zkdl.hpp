@@ -48,14 +48,14 @@ namespace ZkdlProduct
         // BigInt b;
     };
 
-    std::ofstream &operator<<(std::ofstream &fout, const ZkdlProduct::Proof &proof)
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
     {
         fout << proof.vec_GL << proof.vec_GR ;
         fout << proof.a;
         return fout;
     }
 
-    std::ifstream &operator>>(std::ifstream &fin, ZkdlProduct::Proof &proof)
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
     {
         fin >> proof.vec_GL >> proof.vec_GR ;
         fin >> proof.a;

@@ -73,7 +73,7 @@ struct Proof
 std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
 {
     fout << proof.A << proof.S << proof.T1 << proof.T2 << proof.E;
-    fout << proof.taux << proof.mu << proof.tx;
+    fout << proof.taux << proof.mu << proof.tx << proof.fs;
     fout << proof.ip_proof;
     return fout; 
 }
@@ -81,7 +81,7 @@ std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
 std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
 {
     fin >> proof.A >> proof.S >> proof.T1 >> proof.T2 >> proof.E;
-    fin >> proof.taux >> proof.mu >> proof.tx;
+    fin >> proof.taux >> proof.mu >> proof.tx >> proof.fs;
     fin >> proof.ip_proof;
     return fin; 
 }

@@ -52,6 +52,19 @@ struct Proof
     BigInt zA, zC; 
 };
  
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+    {
+        fout << proof.B << proof.z << proof.vec_G; 
+        fout << proof.A << proof.C << proof.D << proof.vec_f << proof.zA << proof.zC;   
+        return fout;
+    }
+
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
+    {
+        fin >> proof.B >> proof.z >> proof.vec_G; 
+        fin >> proof.A >> proof.C >> proof.D >> proof.vec_f >> proof.zA >> proof.zC;   
+        return fin;
+    } 
 
 /* Setup algorithm */ 
 PP Setup(Pedersen::PP &com_pp, TwistedExponentialElGamal::PP &enc_pp, size_t n)

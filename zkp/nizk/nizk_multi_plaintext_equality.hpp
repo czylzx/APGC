@@ -46,13 +46,13 @@ namespace MutiliPlaintextEquality
         
     };
 
-    std::ofstream &operator<<(std::ofstream &fout, const MutiliPlaintextEquality::Proof &proof)
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
     {
         fout << proof.X << proof.Y << proof.z << proof.f;   
         return fout;
     }
 
-    std::ifstream &operator>>(std::ifstream &fin, MutiliPlaintextEquality::Proof &proof)
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
     {
         fin >> proof.X >> proof.Y >> proof.z >> proof.f;
         return fin;

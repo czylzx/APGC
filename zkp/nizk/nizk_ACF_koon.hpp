@@ -116,6 +116,24 @@ namespace ACF_koon
         ECPoint Ax;
     }; 
 
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+    {
+        fout << proof.P << proof.S << proof.vec_C << proof.zs << proof.k << proof.f_zkdl << proof.Ax; 
+        fout << proof.amorhom_proof;   
+        fout << proof.kbit_proof;   
+        fout << proof.zkdl_proof;   
+        return fout;
+    }
+
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
+    {
+        fin >> proof.P >> proof.S >> proof.vec_C >> proof.zs >> proof.k >> proof.f_zkdl >> proof.Ax; 
+        fin >> proof.amorhom_proof;   
+        fin >> proof.kbit_proof;   
+        fin >> proof.zkdl_proof;   
+        return fin;
+    }     
+
     /* (Protocol 2 on pp.15) */
     PP Setup(size_t VECTOR_LEN)
     {

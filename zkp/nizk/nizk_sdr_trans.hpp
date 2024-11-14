@@ -58,6 +58,33 @@ struct Proof
     BigInt a1,a2,b1,b2; 
 };
  
+std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+{
+    fout << proof.A << proof.C << proof.D ;
+    fout << proof.vec_C;
+    fout << proof.V1 << proof.V2 << proof.S1 << proof.S2 ;
+    fout << proof.T11 << proof.T12 << proof.T21 << proof.T22 ;
+    fout << proof.vec_f;
+    fout << proof.zA << proof.zC << proof.zG ;
+    fout << proof.mu1 << proof.mu2 << proof.t1 << proof.t2 << proof.tau1 << proof.tau2 ;
+    fout << proof.vec_L1 << proof.vec_L2 << proof.vec_R1 << proof.vec_R2 ;
+    fout << proof.a1 << proof.a2 << proof.b1 << proof.b2 ;
+    return fout;
+}
+
+std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
+{
+    fin >> proof.A >> proof.C >> proof.D ;
+    fin >> proof.vec_C;
+    fin >> proof.V1 >> proof.V2 >> proof.S1 >> proof.S2 ;
+    fin >> proof.T11 >> proof.T12 >> proof.T21 >> proof.T22 ;
+    fin >> proof.vec_f;
+    fin >> proof.zA >> proof.zC >> proof.zG ;
+    fin >> proof.mu1 >> proof.mu2 >> proof.t1 >> proof.t2 >> proof.tau1 >> proof.tau2 ;
+    fin >> proof.vec_L1 >> proof.vec_L2 >> proof.vec_R1 >> proof.vec_R2 ;
+    fin >> proof.a1 >> proof.a2 >> proof.b1 >> proof.b2 ;
+    return fin;
+}
 
 /* Setup algorithm */ 
 PP Setup(size_t N)

@@ -79,6 +79,20 @@ struct Proof
     InnerProduct::Proof ip_proof;
 };
  
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+    {
+        fout << proof.A << proof.T1 << proof.T2 << proof.t << proof.tau << proof.mu;
+        fout << proof.ip_proof;
+        return fout;
+    }
+
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
+    {
+        fin >> proof.A >> proof.T1 >> proof.T2 >> proof.t >> proof.tau << proof.mu;
+        fin >> proof.ip_proof;
+        return fin;
+    }
+
 
 /* Setup algorithm */ 
 PP Setup(size_t N)

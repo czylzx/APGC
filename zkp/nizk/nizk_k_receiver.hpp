@@ -85,6 +85,17 @@ struct Proof
     Bullet::Proof bullet_proof_two;
 };
  
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+    {
+        fout << proof.koon_proof << proof.bullet_proof_one << proof.bullet_proof_two;   
+        return fout;
+    }
+
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
+    {
+        fin >> proof.koon_proof >> proof.bullet_proof_one >> proof.bullet_proof_two ;
+        return fin;
+    }
 
 /* Setup algorithm */ 
 PP Setup(size_t N, size_t k)

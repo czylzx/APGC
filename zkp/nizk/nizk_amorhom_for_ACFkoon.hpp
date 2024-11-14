@@ -54,6 +54,21 @@ namespace AmorHom
         BigInt f;
     };
 
+
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+    {
+        fout << proof.Ap << proof.Af << proof.f; 
+        four << proof.eqmdl_proof;   
+        return fout;
+    }
+
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
+    {
+        fin >> proof.Ap >> proof.Af >> proof.f; 
+        fin >> proof.eqmdl_proof;   
+        return fin;
+    } 
+
     PP Setup(size_t n)
     {  
         PP pp;

@@ -49,6 +49,20 @@ struct Proof
 };
  
 
+std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+{
+    fout << proof.A << proof.C << proof.D << proof.vec_a << proof.vec_f << proof.zA << proof.zC;
+    return fout;  
+}
+
+std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
+{
+    fin >> proof.A >> proof.C >> proof.D >> proof.vec_a >> proof.vec_f >> proof.zA >> proof.zC;
+    return fin; 
+}
+
+
+
 /* Setup algorithm */ 
 PP Setup(size_t N)
 {

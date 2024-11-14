@@ -84,6 +84,24 @@ struct Proof
     LogBit::Proof logbit_proof;
 };
  
+    std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+    {
+        fout << proof.A << proof.B << proof.C << proof.D << proof.P;
+        fout << proof.vec_C_c << proof.vec_C_p << proof.vec_f;
+        fout << proof.zA << proof.zC << proof.zG << proof.zP;
+        fout << proof.logbit_proof;
+        return fout;
+    }
+
+    std::ifstream &operator>>(std::ifstream &fin, Proof &proof)
+    {
+        fin >> proof.A >> proof.B >> proof.C >> proof.D >> proof.P;
+        fin >> proof.vec_C_c >> proof.vec_C_p >> proof.vec_f;
+        fin >> proof.zA >> proof.zC >> proof.zG >> proof.zP;
+        fin >> proof.logbit_proof;
+        return fin;
+    }
+
 
 /* Setup algorithm */ 
 PP Setup(size_t N)
