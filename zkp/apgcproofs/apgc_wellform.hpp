@@ -58,15 +58,15 @@ namespace WellFormProduct
 
     std::ofstream &operator<<(std::ofstream &fout, const WellFormProduct::Proof &proof)
     {
-        // fout << proof.G << proof.c << proof.AG << proof.ACL << proof.ACR << proof.e << proof.z << proof.fg << proof.fcr;
         fout << proof.G << proof.AG << proof.ACL << proof.ACR << proof.fg << proof.fcr;
+        fout << proof.eqmdl_proof;
         return fout;
     }
 
     std::ifstream &operator>>(std::ifstream &fin, WellFormProduct::Proof &proof)
     {
-        // fin >> proof.G >> proof.c >> proof.AG >> proof.ACL >> proof.ACR >> proof.e >> proof.z >> proof.fg >> proof.fcr;
         fin >> proof.G >> proof.AG >> proof.ACL >> proof.ACR >> proof.fg >> proof.fcr;
+        fin >> proof.eqmdl_proof;
         return fin;
     }
 

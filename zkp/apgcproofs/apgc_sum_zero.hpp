@@ -38,6 +38,18 @@ namespace SumZero
         BigInt z; 
     };
 
+    std::ofstream &operator<<(std::ofstream &fout, const WellFormProduct::Proof &proof)
+    {
+        fout << proof.A << proof.z;
+        return fout;
+    }
+
+    std::ifstream &operator>>(std::ifstream &fin, WellFormProduct::Proof &proof)
+    {
+        fin >> proof.A >> proof.z;
+        return fin;
+    }
+
     PP Setup(ECPoint g, size_t n)
     {
         PP pp;

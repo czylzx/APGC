@@ -41,6 +41,20 @@ struct Proof
     InnerProduct::Proof ip_proof;    
 };
 
+std::ofstream &operator<<(std::ofstream &fout, const Proof &proof)
+{
+    fout << proof.A << proof.S << proof.T1 << proof.T2 << proof.taux << proof.mu << proof.tx; 
+    fout << proof.ip_proof; 
+    return fout; 
+}
+
+std::ifstream &operator>>(std::ifstream &fin, InnerProduct::Proof &proof)
+{
+    fin >> proof.A >> proof.S >> proof.T1 >> proof.T2 >> proof.taux >> proof.mu >> proof.tx; 
+    fin >> proof.ip_proof; 
+    return fin; 
+}
+
 /* generate a^n = (a^0, a^1, a^2, ..., a^{n-1}) */ 
 std::vector<BigInt> GenBigIntPowerVector(size_t LEN, const BigInt &a)
 {
