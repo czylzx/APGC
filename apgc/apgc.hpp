@@ -1018,7 +1018,7 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     // check the NIZK proof for refresh correctness
     bool condition6;
     //start_time = std::chrono::steady_clock::now();
-    
+
     SdrTrans::PP sdr_pp = pp.sdr_trans;
     SdrTrans::Instance sdr_instance;
     sdr_instance.B = newCTx.vector_commitment_B_l0;
@@ -1056,7 +1056,14 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
         }
         Kreceiver::Proof kreceiver_proof = newCTx.kreceiver_proof;
         transcript_str ="";
-         condition7 = Kreceiver::Verify(kreceiver_pp, kreceiver_instance, transcript_str, kreceiver_proof);
+        condition7 = Kreceiver::Verify(kreceiver_pp, kreceiver_instance, transcript_str, kreceiver_proof);
+    #ifdef DEMO
+        PrintSplitLine('-');
+    #endif
+    #ifdef DEMO
+        if (condition7) std::cout << "NIZKPoK for Trans_receiver accepts  " << std::endl; 
+        else std::cout << "NIZKPoK for Trans_receiver rejects  " << std::endl; 
+    #endif
       
     }
     // start_time = std::chrono::steady_clock::now();
