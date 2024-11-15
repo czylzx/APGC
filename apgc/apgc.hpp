@@ -48,7 +48,7 @@ struct PP{
     Solvent_Equal::PP solvent_equal_part;
     AnyOutOfMany::PP any_out_of_many_part;
     SumZero::PP sum_zero_part;
-    //MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_part;
+    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_part;
     ECPoint pka; // supervisor's pk
 };
 
@@ -258,7 +258,7 @@ struct ToManyCTx{
     TwistedExponentialElGamal::CT refresh_updated_ct;
     // validity proof
     WellFormProduct::Proof plaintext_wellformed_proof;
-    //MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
+    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
     SumZero::Proof plaintext_sumzero_proof;
     AnyOutOfMany::Proof slack_participant_proof;
     Solvent_Equal::Proof solvent_equal_proof;
@@ -324,6 +324,7 @@ void SaveCTx(ToManyCTx &newCTx, std::string APGC_CTx_File)
     fout << newCTx.sdr_trans_proof_sender;
     //fout << newCTx.sdr_trans_proof_receiver;
     fout << newCTx.solvent_equal_proof;
+    fout << newCTx.superivisor_plaintext_wellformed_proof;
 
     if(newCTx.k > 1)
     {
@@ -823,28 +824,28 @@ ToManyCTx CreateCTx(PP &pp, Account &Acct_sender, std::vector<BigInt> &vec_v, st
     //     std::cout << "7. generate NIZKPoK for supervise" << std::endl;  
     // #endif
     // start_time = std::chrono::steady_clock::now();
-    // MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);
-    // pp.superivisor_plaintext_wellformed_part = superivisor_plaintext_wellformed_pp;
-    // MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
+    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = MutiliPlaintextEquality::Setup(pp.enc_part.g, pp.enc_part.h, n);
+    pp.superivisor_plaintext_wellformed_part = superivisor_plaintext_wellformed_pp;
+    MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
 
-    // superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
-    // superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
-    // superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
-    // for(auto i = 0; i < n; i++){
-    //     superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
-    //     superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
-    // }
+    superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
+    superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
+    superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
+    for(auto i = 0; i < n; i++){
+        superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
+        superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
 
-    // MutiliPlaintextEquality::Witness superivisor_plaintext_wellformed_witness;
+    MutiliPlaintextEquality::Witness superivisor_plaintext_wellformed_witness;
 
-    // superivisor_plaintext_wellformed_witness.vec_r = vec_r; // r is as same as the plaintext_wellform_product_witness
-    // superivisor_plaintext_wellformed_witness.vec_v = vec_v_plaintext_wellform;// v is as same as the plaintext_wellform_product_witness
-    // MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
-    // transcript_str = "";
-    // MutiliPlaintextEquality::Prove(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
-    //                     superivisor_plaintext_wellformed_witness, transcript_str, superivisor_plaintext_wellformed_proof);
+    superivisor_plaintext_wellformed_witness.vec_r = vec_r; // r is as same as the plaintext_wellform_product_witness
+    superivisor_plaintext_wellformed_witness.vec_v = vec_v_plaintext_wellform;// v is as same as the plaintext_wellform_product_witness
+    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof;
+    transcript_str = "";
+    MutiliPlaintextEquality::Prove(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
+                        superivisor_plaintext_wellformed_witness, transcript_str, superivisor_plaintext_wellformed_proof);
                     
-    // newCTx.superivisor_plaintext_wellformed_proof = superivisor_plaintext_wellformed_proof;
+    newCTx.superivisor_plaintext_wellformed_proof = superivisor_plaintext_wellformed_proof;
 
     // end_time = std::chrono::steady_clock::now();
     // time_diff = end_time - start_time;
@@ -1090,22 +1091,22 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     //     if (condition7) std::cout << "NIZKPoK for SdrTrans_receiver accepts  " << std::endl; 
     //     else std::cout << "NIZKPoK for SdrTrans_receiver rejects  " << std::endl; 
     // #endif
-    // bool condition8;
-    // start_time = std::chrono::steady_clock::now();
-    // MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = pp.superivisor_plaintext_wellformed_part;
-    // MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
-    // superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
-    // superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
-    // superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
-    // for(auto i = 0; i < n; i++){
-    //     superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
-    //     superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
-    // }
+    bool condition8;
+    //start_time = std::chrono::steady_clock::now();
+    MutiliPlaintextEquality::PP superivisor_plaintext_wellformed_pp = pp.superivisor_plaintext_wellformed_part;
+    MutiliPlaintextEquality::Instance superivisor_plaintext_wellformed_instance;
+    superivisor_plaintext_wellformed_instance.pk_a = pp.pka;
+    superivisor_plaintext_wellformed_instance.vec_CL.resize(n);
+    superivisor_plaintext_wellformed_instance.vec_CR.resize(n);
+    for(auto i = 0; i < n; i++){
+        superivisor_plaintext_wellformed_instance.vec_CL[i] = newCTx.vec_participant_transfer_ct[i].vec_X[1];
+        superivisor_plaintext_wellformed_instance.vec_CR[i] = newCTx.vec_participant_transfer_ct[i].Y;
+    }
 
-    // MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof = newCTx.superivisor_plaintext_wellformed_proof;
-    // transcript_str = "";
-    // condition8 = MutiliPlaintextEquality::Verify(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
-    //                     transcript_str, superivisor_plaintext_wellformed_proof);
+    MutiliPlaintextEquality::Proof superivisor_plaintext_wellformed_proof = newCTx.superivisor_plaintext_wellformed_proof;
+    transcript_str = "";
+    condition8 = MutiliPlaintextEquality::Verify(superivisor_plaintext_wellformed_pp, superivisor_plaintext_wellformed_instance, 
+                        transcript_str, superivisor_plaintext_wellformed_proof);
     // end_time = std::chrono::steady_clock::now();
     // time_diff = end_time - start_time;
     // std::cout << "time for verifying NIZKPoK for supervise tx = " << std::chrono::duration<double, std::milli>(time_diff).count() << " ms" << std::endl;
@@ -1118,7 +1119,7 @@ bool VerifyCTx(PP &pp, ToManyCTx &newCTx)
     //     else std::cout << "NIZKPoK for MutiliPlaintextEquality rejects  " << std::endl; 
     // #endif
     
-    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7 ; 
+    bool Validity = condition1 && condition2 && condition3 && condition4 && condition5 && condition6 && condition7 && condition8; 
 
     std::string ctx_file = GetCTxFileName(newCTx); 
     #ifdef DEMO

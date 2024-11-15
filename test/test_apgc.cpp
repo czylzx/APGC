@@ -302,12 +302,12 @@ void Emulate_APGC_System(size_t number, size_t kreceiver)
     std::cout << "press any key to continue >>>" << std::endl; 
     system ("read");
 
-    //std::cout << "supervision of 1-to-n ctx begins >>>" << std::endl; 
-    //PrintSplitLine('-'); 
-    //APGC::SuperviseCTx(sp, pp, ctx, vec_Acct_participant); 
-    //PrintSplitLine('-'); 
-    //std::cout << "supervision of 1-to-k ctx ends >>>" << std::endl; 
-    //PrintSplitLine('-');
+    std::cout << "supervision of 1-to-n ctx begins >>>" << std::endl; 
+    PrintSplitLine('-'); 
+    APGC::SuperviseCTx(sp, pp, ctx, vec_Acct_participant); 
+    PrintSplitLine('-'); 
+    std::cout << "supervision of 1-to-k ctx ends >>>" << std::endl; 
+    PrintSplitLine('-');
 
 }
 
@@ -317,7 +317,7 @@ int main()
 {
     CRYPTO_Initialize();   
     size_t number = 64;
-    size_t kreceiver = 8;
+    size_t kreceiver = 1;
 
     Emulate_APGC_System(number, kreceiver);
 
