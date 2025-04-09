@@ -1,31 +1,4 @@
-# Kunlun: A Modern Crypto Library
-
-## Overview
-
-I give a C++ wrapper for OpenSSL, making it handy to use, without worrying about the cumbersome memory management and memorizing the complex interfaces. Based on this wrapper, I am going to build an efficient and modular crypto library. 
-
-## Design Philosophy
-
-Provide a set of neat interfaces for big integer and ec group operations, with the hope that the code is as succinct as paper description. Kunlun supports multithreading via OpenMP. So far, the library is not stable. It will keep evolving. 
-
-## Issues
-
-* OpenSSL does not support pre-computation for customized generator.
-* bn_ctx is not thread-safe, so in many places it is hard to apply the SIMD parallel optimization. 
-* A dirty trick is to make openssl-based programs parallizable is to set bn_ctx = nullptr. This trick works for some cases but not all, and only beats the single-thread programs when THREAD_NUM is much larger than 1.  
-
-If the above two issues get solved, the performance of Kunlun will be better.
-
-## To do list (impossible missions for me)
-
-* PRF  
-* garbled circuit
-* secret sharing
-* zk-SNARK
-* add class for Zn and ECPoint/BigInt vector
-* wrap _m128i as class?
-* silient OT
-* overload << >> for serialization
+# APGC: Anonymous privacy-preserving transaction system based on Kunlun---A Modern Crypto Library
 
 
 ## Specifications
@@ -119,74 +92,34 @@ if reporting cannot find "opensslv.h" error, try to install libssl-dev
 
 - /pke: public key encryption schemes
   * twisted_exponential_elgamal.hpp
-  * exponential_elgamal.hpp
   * elgamal.hpp: standard ElGamal PKE whose message space is G 
   * calculate_dlog.hpp: implement optimized general Shank's algorithm
-
-- /signature
-  * schnorr.hpp
-  * accountable_ring_signature.hpp: implement accountable ring signature
 
 - /commitment
   * pedersen.hpp: multi-element Pedersen commitment
 
-- /gadgets
-  * range_proof.hpp: two useful gadgets for proving encrypted values lie in the right range
-
 - /cryptocurrency
-  * adcp.hpp: the adcp system 
-
-- /netio
-  * stream_channel.hpp: basic network socket functionality
-
-- mpc
-  - /ot
-    * naor_pinkas_ot.hpp: one base OT
-    * iknp_ote.hpp: IKNP OT extension
-
-  - /oprf
-    * ote_oprf: OTE-based OPRF
-    * ddh_oprf: DDH-based (permuted)-OPRF
-    * vole_oprf: VOLE-based OPRF
-
-  - /rpmt
-    * cwprf_mqrpmt.hpp: mq-RPMT from commutative weak PRF
-
-  - /pso
-    * mqrpmt_psi.hpp: set intersection
-    * mqrpmt_psi_card.hpp: intersection cardinality
-    * mqrpmt_psi_card_sum.hpp: intersection sum and cardinality 
-    * mqrpmt_psu.hpp: union
-    * mqrpmt_private_id.hpp: private-id protocol based on OTE-based OPRF and cwPRF-based mqRPMT
-
-  - /okvs
-    * baxos.hpp
-    * ovks_utility.hpp
-    * paxos.hpp
-
-  - /vole
-    * basevole.hpp
-    * exconvcode.hpp
-    * vole.hpp
-  
+  * apgc.hpp: the apgc system 
 
 - zkp
+  - /apgcproofs
+    * apgc_amorhom_proof.hpp: apgc_sdr_solvent_equal.hpp invoke this
+    * apgc_eqmdl_proof.hpp: prove G=g^a and H = h^a and P = p^a
+    * apgc_eqmdl4two_proof.hpp: prove P=g^a and H =h^a
+    * apgc_sdr_solvent_equal.hpp: prove sender's balance is solvent
+    * apgc_sum_zero.hpp: the sum of the commitment is zero
+    * apgc_wellform.hpp: cipher is well-form
   - /nizk: associated sigma protocol for twisted elgamal; obtained via Fiat-Shamir transform  
-    * nizk_plaintext_equality.hpp: NIZKPoK for twisted ElGamal plaintext equality in 3-recipient mode
-    * nizk_plaintext_knowledge.hpp: NIZKPoK for twisted ElGamal plaintext and randomness knowledge
-    * nizk_dlog_equality.hpp: NIZKPoK for discrete logarithm equality
-    * nizk_dlog_knowledge.hpp: Schnorr protocol for dlog
-    * nizk_enc_relation.hpp: prove one-out-of-n ciphertexts is encryption of 0
+    * nizk_1oon_for_sdr_trans.hpp: nizk_sdr_trans.hpp invoke this
+    * nizk_1oon.hpp: nizk_1oon_for_sdr_trans.hpp invoke this
+    * nizk_any_out_of_many.hpp: ant out of n is encryption of 0
+    * nizk_lin_bit.hpp: vector bit commitment
+    * nizk_sdr_trans.hpp: prove one-out-of-n ciphertexts is encryption of -v
 
   - /bulletproofs
     * bullet_proof.hpp: the aggregating logarithmic size bulletproofs
     * innerproduct_proof.hpp: the inner product argument (used by Bulletproof to shrink the proof size) 
 
-- /filter
-  * bloom_filter.hpp
-  * cuckoo_filter.hpp
-
-- /docs: the manual of all codes
 
 ---
 
@@ -195,7 +128,7 @@ if reporting cannot find "opensslv.h" error, try to install libssl-dev
   $ mkdir build && cd build
   $ cmake ..
   $ make
-  $ ./test_xxx 
+  $ ./test_apgc
 ```
 
 ---
@@ -227,17 +160,6 @@ inline int curve_id = NID_X9_62_prime256v1; // choose other curves by specifying
 
 Note: x22519 is an efficnet DDH-based non-interactive key exchange (NIKE) protocol based on curve25519. The essense of x25519 is exactly cwPRF. Its remarkable efficency is attained by performing "somehow EC exponentiation" with only X-coordinates (perhaps x25519 name after it). However, in x25519 the EC exponetiation is not standard, and EC addition is not well-defined. We stress that curve25519 certainly support standard EC exponentiation and addition, but x25519 method does not. Kunlun provides the option of using x25519 method to improve performance of applications when it is applicable (involving only cwPRF). But, since x25519 method is not full-fledged, ordinary EC curves are always necessary for base Naor-Pinkas OT. Therefore, users must specify one ordinary EC curve when implementing ECC.    
 
-## Evolution and Updates Log
-
-   * 20210827: post the initial version, mainly consists of wrapper class for BIGNUM* and EC_Point*
-   * 20210925: shift twisted elgamal, sigma protocols, bulletproofs, and adcp to Kunlun
-   * 20211011: feed my first grammar sugar "namespace" to Kunlun, add OT primitive
-   * 20220319: add private set operation and re-org many places 
-   * 20220329: speeding Shanks DLOG algorithm and add ElGamal PKE and Schnorr SIG
-   * 20220605: greatly improve the multi-thread support (simplify the code and unify the interface)
-   * 20230719: refine multi-thread support (fix bugs and improve performance)
-
----
 
 ## License
 
@@ -245,31 +167,5 @@ This library is licensed under the [MIT License](LICENSE).
 
 ---
 
-## Acknowledgement
 
-We deeply thank [Weiran Liu](https://www.zhihu.com/people/liu-wei-ran-8-34) for many helpful discussions on the development of this library. Here we strongly recommend the efficient and easy-to-use [MPC library for Java](https://github.com/alibaba-edu/mpc4j) developed by his team. 
-I thank my deer senior apprentice [Prof. Zhi Guan](http://gmssl.org/) for professional help. 
-
-## Tips
-
-* thread vector is more efficient than thread array: I don't know the reason why
-* add mutex to lock bn_ctx will severely harm the performance of multi thread 
-* void* type pointer allow you to determine the exact type later and provide a unified interface
-
----
-
-## How to test the speed of socket communication?
-
-1. install iperf3 via the following command
-```
-brew install iperf3
-```
-
-2. open it in two terminals (perhaps on two computers)
-```
-iperf3 -s
-iperf3 -c [IP Address of first Mac]
-```
-
-See more information via https://www.macobserver.com/tmo/answers/how-to-test-speed-home-network-iperf
 
